@@ -5,6 +5,7 @@
 
 # Logs
 logs
+timepass
 *.log
 npm-debug.log*
 pnpm-debug.log*

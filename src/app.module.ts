@@ -12,7 +12,17 @@ import { TimelineModule } from './modules/timeline/timeline.module';
 import { MessagesModule } from './modules/messages/messages.module';
 
 @Module({
-  imports: [UsersModule, AuthModule, BusinessesModule, PetsModule, VaccinesModule, StaffModule, DocumentsModule, TimelineModule, MessagesModule],
+  imports: [
+    UsersModule,
+    AuthModule,
+    BusinessesModule,
+    PetsModule,
+    VaccinesModule,
+    StaffModule,
+    DocumentsModule,
+    TimelineModule,
+    MessagesModule,
+  ],
   controllers: [AppController],
   providers: [AppService],
 })
