@@ -10,6 +10,9 @@ import { StaffModule } from './modules/staff/staff.module';
 import { DocumentsModule } from './modules/documents/documents.module';
 import { TimelineModule } from './modules/timeline/timeline.module';
 import { MessagesModule } from './modules/messages/messages.module';
+import { ReviewsModule } from './modules/reviews/reviews.module';
+import { HumanOwnersModule } from './modules/human_owners/human_owners.module';
+import { TeamsModule } from './modules/teams/teams.module';
 
 @Module({
   imports: [
@@ -22,6 +25,9 @@ import { MessagesModule } from './modules/messages/messages.module';
     DocumentsModule,
     TimelineModule,
     MessagesModule,
+    ReviewsModule,
+    HumanOwnersModule,
+    TeamsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
