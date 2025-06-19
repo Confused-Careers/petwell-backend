@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
-import { HumanOwnersController } from './human_owners.controller';
-import { HumanOwnersService } from './human_owners.service';
+import { HumanOwnersController } from './human-owners.controller';
+import { HumanOwnersService } from './human-owners.service';
 
 @Module({
   controllers: [HumanOwnersController],
