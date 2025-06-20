@@ -25,6 +25,12 @@ export class Staff {
   @Column()
   role: string;
 
+  @Column({ nullable: true })
+  profile_picture_document_id: string;
+
+  @Column({ nullable: true })
+  qr_code_id: string;
+
   @Column({ type: 'varchar', length: 6, nullable: true })
   otp_code: string;
 
@@ -36,4 +42,10 @@ export class Staff {
 
   @Column({ type: 'enum', enum: Status, default: Status.Active })
   status: Status;
+
+  @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
+  created_at: Date;
+
+  @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP', onUpdate: 'CURRENT_TIMESTAMP' })
+  updated_at: Date;
 }

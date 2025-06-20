@@ -16,6 +16,7 @@ import { HumanOwnersModule } from '@modules/human-owners/human-owners.module';
 import { TeamsModule } from '@modules/teams/teams.module';
 import { AuditLogsModule } from '@modules/audit-logs/audit-logs.module';
 import { dataSourceOptions } from '@config/database.config';
+import { LicensesModule } from './modules/licenses/licenses.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { dataSourceOptions } from '@config/database.config';
     HumanOwnersModule,
     TeamsModule,
     AuditLogsModule,
+    LicensesModule,
   ],
   controllers: [AppController],
   providers: [AppService],
