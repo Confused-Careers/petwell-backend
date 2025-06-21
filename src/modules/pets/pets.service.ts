@@ -9,6 +9,8 @@ import { AuditLog } from '@modules/audit-logs/entities/audit-log.entity';
 import { CreatePetDto } from './dto/create-pet.dto';
 import { UpdatePetDto } from './dto/update-pet.dto';
 import { Status } from '@shared/enums/status.enum';
+import { PetBreedSpeciesDto } from './dto/get-species-breed.dto';
+import { DEFAULT_LIMIT, ZERO } from '@shared/utils/constants';
 
 @Injectable()
 export class PetsService {
@@ -183,15 +185,54 @@ export class PetsService {
     return {
       species: breedSpecies.map((bs) => ({
         id: bs.id,
-        name: bs.species,
+        name: bs.species_name,
       })),
       breeds: breedSpecies.reduce((acc, bs) => {
         acc[bs.id] = bs.breeds.map((breed) => ({
           id: breed.id,
-          name: breed.name,
+          name: breed.breed_name,
         }));
         return acc;
       }, {} as Record<string, { id: string; name: string }[]>),
     };
+  }
+
+  async getSpecies(petBreedSpeciesDto: PetBreedSpeciesDto) {
+    let species=this.breedSpeciesRepository.createQueryBuilder('species')
+    .select([
+      'species.species_name as species_name',
+      'species.id as id'
+    ])
+    .where('species.status=:status',{
+      status:Status.Active
+    })
+    if (petBreedSpeciesDto.search_txt) {
+     species.andWhere('species.species_name ILIKE :search_txt', { search_txt: `%${petBreedSpeciesDto.search_txt.trim()}%` })
+    }
+
+
+    return species.orderBy("species.id","DESC").offset(petBreedSpeciesDto?.skip || ZERO).limit(petBreedSpeciesDto?.limit || DEFAULT_LIMIT).getRawMany();
+  }
+
+  async getBreeds(petBreedSpeciesDto: PetBreedSpeciesDto) {
+    let breeds=this.breedRepository.createQueryBuilder('breed')
+    .select([
+      'breed.breed_name as breed_name',
+      'breed.id as id'
+    ])
+    .where('breed.status=:status',{
+      status:Status.Active
+    })
+    if (petBreedSpeciesDto.breed_species_id) {
+    breeds.andWhere('breed.breedSpeciesId = :species_id', {
+      species_id: petBreedSpeciesDto.breed_species_id,
+    });
+  }
+    if (petBreedSpeciesDto.search_txt) {
+     breeds.andWhere('breed.breed_name ILIKE :search_txt', { search_txt: `%${petBreedSpeciesDto.search_txt.trim()}%` })
+    }
+
+
+    return breeds.getRawMany();
   }
 }

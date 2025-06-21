@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException, NotFoundException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, NotFoundException, HttpException, HttpStatus } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, FindOptionsWhere, DataSource } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
@@ -99,7 +99,22 @@ export class AuthService {
   }
 
   async registerHumanOwner(dto: RegisterHumanOwnerDto) {
+<<<<<<< Updated upstream
     const { username, name, location, phone, password } = dto;
+=======
+    console.log(dto)
+    const { username, name, email, password } = dto;
+
+    // Check for unique email across all repositories
+    const emailExists =
+      (await this.humanOwnerRepository.findOne({ where: { email } })) ||
+      (await this.staffRepository.findOne({ where: { email } })) ||
+      (await this.businessRepository.findOne({ where: { email } }));
+
+    if (emailExists) {
+      throw new HttpException('Email already exists',HttpStatus.BAD_REQUEST);
+    }
+>>>>>>> Stashed changes
 
     // Check for unique username across HumanOwner and Staff
     const usernameExists =
@@ -107,7 +122,8 @@ export class AuthService {
       (await this.staffRepository.findOne({ where: { username } }));
 
     if (usernameExists) {
-      throw new UnauthorizedException('Username already exists');
+            throw new HttpException('Username already exist',HttpStatus.BAD_REQUEST);
+
     }
 
     const queryRunner = this.dataSource.createQueryRunner();
@@ -130,6 +146,11 @@ export class AuthService {
         otp_type: 'Registration',
       });
 
+<<<<<<< Updated upstream
+=======
+      // await this.nodeMailerService.sendOtpEmail(email, otpCode);
+      console.log(otpCode)
+>>>>>>> Stashed changes
       await queryRunner.manager.save(humanOwner);
       await queryRunner.commitTransaction();
       

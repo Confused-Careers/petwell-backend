@@ -14,7 +14,7 @@ export class PetProfile {
   human_owner: HumanOwner;
 
   @Column()
-  name: string;
+  pet_name: string;
 
   @Column({ nullable: true })
   age: number;

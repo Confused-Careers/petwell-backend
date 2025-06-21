@@ -4,7 +4,7 @@ import { Status } from '@shared/enums/status.enum';
 export class CreatePetDto {
   @IsNotEmpty()
   @IsString()
-  name: string;
+  pet_name: string;
 
   @IsOptional()
   @IsInt()
