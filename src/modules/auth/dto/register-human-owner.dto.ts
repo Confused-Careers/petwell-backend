@@ -1,4 +1,4 @@
-import { IsEmail, IsString, IsEnum, MinLength } from 'class-validator';
+import { IsString, IsEmail, MinLength } from 'class-validator';
 
 export class RegisterHumanOwnerDto {
   @IsString()
@@ -7,11 +7,13 @@ export class RegisterHumanOwnerDto {
   @IsString()
   name: string;
 
-  @IsEmail()
-  email: string;
+  @IsString()
+  location: string;
+
+  @IsString()
+  phone: string;
 
   @IsString()
   @MinLength(6)
   password: string;
-
 }

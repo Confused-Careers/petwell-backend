@@ -99,17 +99,7 @@ export class AuthService {
   }
 
   async registerHumanOwner(dto: RegisterHumanOwnerDto) {
-    const { username, name, email, password } = dto;
-
-    // Check for unique email across all repositories
-    const emailExists =
-      (await this.humanOwnerRepository.findOne({ where: { email } })) ||
-      (await this.staffRepository.findOne({ where: { email } })) ||
-      (await this.businessRepository.findOne({ where: { email } }));
-
-    if (emailExists) {
-      throw new UnauthorizedException('Email already exists');
-    }
+    const { username, name, location, phone, password } = dto;
 
     // Check for unique username across HumanOwner and Staff
     const usernameExists =
@@ -132,19 +122,18 @@ export class AuthService {
       const humanOwner = this.humanOwnerRepository.create({
         username,
         name,
-        email,
+        location,
+        phone,
         password: hashedPassword,
         otp_code: otpCode,
         otp_expires_at: otpExpiresAt,
         otp_type: 'Registration',
       });
 
-      await this.nodeMailerService.sendOtpEmail(email, otpCode);
-      
       await queryRunner.manager.save(humanOwner);
       await queryRunner.commitTransaction();
       
-      return { message: 'OTP sent to email' };
+      return { message: 'Human owner registered successfully' };
     } catch (error) {
       await queryRunner.rollbackTransaction();
       throw error;
@@ -214,7 +203,7 @@ export class AuthService {
   }
 
   async registerBusiness(dto: RegisterBusinessDto) {
-    const { name, email, password } = dto;
+    const { name, email, phone, password, description, website, instagram, facebook, x } = dto;
 
     // Check for unique email across all repositories
     const emailExists =
@@ -235,10 +224,20 @@ export class AuthService {
       const otpCode = OtpUtil.generateOtp();
       const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
+      const socials = {
+        instagram: instagram || null,
+        facebook: facebook || null,
+        x: x || null,
+      };
+
       const business = this.businessRepository.create({
         name,
         email,
+        phone,
         password: hashedPassword,
+        description,
+        website,
+        socials,
         otp_code: otpCode,
         otp_expires_at: otpExpiresAt,
         otp_type: 'Registration',

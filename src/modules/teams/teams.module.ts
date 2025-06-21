@@ -1,9 +1,16 @@
 import { Module } from '@nestjs/common';
-import { TeamsController } from './teams.controller';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { TeamsService } from './teams.service';
+import { TeamsController } from './teams.controller';
+import { Team } from './entities/team.entity';
+import { HumanOwner } from '../human-owners/entities/human-owner.entity';
+import { PetProfile } from '../pets/entities/pet-profile.entity';
+import { Business } from '../businesses/entities/business.entity';
+import { Staff } from '../staff/entities/staff.entity';
 
 @Module({
+  imports: [TypeOrmModule.forFeature([Team, HumanOwner, PetProfile, Business, Staff])],
   controllers: [TeamsController],
-  providers: [TeamsService]
+  providers: [TeamsService],
 })
 export class TeamsModule {}
