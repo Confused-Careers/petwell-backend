@@ -3,7 +3,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { StaffService } from './staff.service';
 import { UpdateStaffDto } from './dto/update-staff.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { Multer } from 'multer';
+import { Express } from 'express';
 
 @Controller('staff')
 @UseGuards(JwtAuthGuard)
@@ -20,7 +20,7 @@ export class StaffController {
   async updateProfile(
     @Req() req,
     @Body() updateStaffDto: UpdateStaffDto,
-    @UploadedFile() file?: Multer.File,
+    @UploadedFile() file?: Express.Multer.File,
   ) {
     return this.staffService.updateProfile(req.user, updateStaffDto, file);
   }

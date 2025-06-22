@@ -114,7 +114,7 @@ export class TeamsService {
 
     const allBusinesses = await this.businessRepository.find({
       where: whereClause,
-      select: ['id', 'name', 'email', 'description'],
+      select: ['id', 'business_name', 'email', 'description'],
     });
 
     if (user.entityType === 'HumanOwner') {
@@ -155,7 +155,7 @@ export class TeamsService {
     return this.staffRepository.find({
       where: whereClause,
       relations: ['business'],
-      select: ['id', 'name', 'email', 'role', 'business'],
+      select: ['id', 'staff_name', 'email', 'role_name', 'business'],
     });
   }
 }

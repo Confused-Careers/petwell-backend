@@ -7,7 +7,7 @@ export class CreateStaffDto {
 
   @IsNotEmpty()
   @IsString()
-  name: string;
+  staff_name: string;
 
   @IsNotEmpty()
   @IsEmail()
@@ -19,5 +19,5 @@ export class CreateStaffDto {
 
   @IsNotEmpty()
   @IsEnum(['Veterinarian', 'Nurse', 'Receptionist'])
-  role: 'Veterinarian' | 'Nurse' | 'Receptionist';
+  role_name: 'Veterinarian' | 'Nurse' | 'Receptionist';
 }

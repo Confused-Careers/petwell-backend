@@ -5,7 +5,7 @@ import { Staff } from './entities/staff.entity';
 import { UpdateStaffDto } from './dto/update-staff.dto';
 import { Status } from '../../shared/enums/status.enum';
 import { DocumentsService } from '../documents/documents.service';
-import { Multer } from 'multer';
+import { Express } from 'express';
 import { DocumentType } from '../../shared/enums/document-type.enum';
 
 @Injectable()
@@ -26,7 +26,7 @@ export class StaffService {
     return staff;
   }
 
-  async updateProfile(user: any, updateStaffDto: UpdateStaffDto, file?: Multer.File) {
+  async updateProfile(user: any, updateStaffDto: UpdateStaffDto, file?: Express.Multer.File) {
     if (user.entityType !== 'Staff') throw new UnauthorizedException('Only staff can update their profile');
     const staff = await this.staffRepository.findOne({ where: { id: user.id, status: Status.Active } });
     if (!staff) throw new NotFoundException('Staff not found');
@@ -34,8 +34,8 @@ export class StaffService {
     if (file) {
       const document = await this.documentsService.uploadDocument(
         {
-          name: `profile-picture-${user.id}`,
-          type: DocumentType.ProfilePicture,
+          document_name: `profile-picture-${user.id}`,
+          document_type: DocumentType.ProfilePicture,
           file_type: file.mimetype.split('/')[1].toUpperCase() as any,
         },
         file,
@@ -45,9 +45,9 @@ export class StaffService {
     }
 
     Object.assign(staff, {
-      name: updateStaffDto.name || staff.name,
+      staff_name: updateStaffDto.staff_name || staff.staff_name,
       email: updateStaffDto.email || staff.email,
-      role: updateStaffDto.role || staff.role,
+      role_name: updateStaffDto.role_name || staff.role_name,
     });
 
     return this.staffRepository.save(staff);

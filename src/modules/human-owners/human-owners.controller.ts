@@ -1,9 +1,9 @@
-import { Controller, Get, Patch, Body, UseGuards, UseInterceptors, UploadedFile, Req, Query } from '@nestjs/common';
+import { Controller, Get, Patch, Body, UseGuards, UseInterceptors, UploadedFile, Req } from '@nestjs/common';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { HumanOwnersService } from './human-owners.service';
 import { UpdateHumanOwnerDto } from './dto/update-human-owner.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { Multer } from 'multer';
+import { Express } from 'express';
 
 @Controller('human-owners')
 @UseGuards(JwtAuthGuard)
@@ -20,7 +20,7 @@ export class HumanOwnersController {
   async updateProfile(
     @Req() req,
     @Body() updateHumanOwnerDto: UpdateHumanOwnerDto,
-    @UploadedFile() file?: Multer.File,
+    @UploadedFile() file?: Express.Multer.File,
   ) {
     return this.humanOwnersService.updateProfile(req.user, updateHumanOwnerDto, file);
   }

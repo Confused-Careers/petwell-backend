@@ -5,7 +5,10 @@ export class RegisterHumanOwnerDto {
   username: string;
 
   @IsString()
-  name: string;
+  human_owner_name: string;
+
+  @IsEmail()
+  email: string;
 
   @IsString()
   location: string;

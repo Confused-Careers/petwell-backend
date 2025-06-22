@@ -6,11 +6,15 @@ import { BreedSpecies } from './entities/breed-species.entity';
 import { Breed } from './entities/breed.entity';
 import { HumanOwner } from '@modules/human-owners/entities/human-owner.entity';
 import { AuditLog } from '@modules/audit-logs/entities/audit-log.entity';
+import { Document } from '@modules/documents/entities/document.entity';
 import { CreatePetDto } from './dto/create-pet.dto';
 import { UpdatePetDto } from './dto/update-pet.dto';
+import { UploadDocumentDto } from '@modules/documents/dto/upload-document.dto';
+import { DocumentsService } from '@modules/documents/documents.service';
 import { Status } from '@shared/enums/status.enum';
 import { PetBreedSpeciesDto } from './dto/get-species-breed.dto';
 import { DEFAULT_LIMIT, ZERO } from '@shared/utils/constants';
+import { Express } from 'express';
 
 @Injectable()
 export class PetsService {
@@ -25,6 +29,9 @@ export class PetsService {
     private humanOwnerRepository: Repository<HumanOwner>,
     @InjectRepository(AuditLog)
     private auditLogRepository: Repository<AuditLog>,
+    @InjectRepository(Document)
+    private documentRepository: Repository<Document>,
+    private documentsService: DocumentsService,
   ) {}
 
   async create(createPetDto: CreatePetDto, user: any, ipAddress: string, userAgent: string) {
@@ -198,41 +205,142 @@ export class PetsService {
   }
 
   async getSpecies(petBreedSpeciesDto: PetBreedSpeciesDto) {
-    let species=this.breedSpeciesRepository.createQueryBuilder('species')
-    .select([
-      'species.species_name as species_name',
-      'species.id as id'
-    ])
-    .where('species.status=:status',{
-      status:Status.Active
-    })
+    let species = this.breedSpeciesRepository.createQueryBuilder('species')
+      .select([
+        'species.species_name as species_name',
+        'species.id as id'
+      ])
+      .where('species.status = :status', {
+        status: Status.Active
+      });
     if (petBreedSpeciesDto.search_txt) {
-     species.andWhere('species.species_name ILIKE :search_txt', { search_txt: `%${petBreedSpeciesDto.search_txt.trim()}%` })
+      species.andWhere('species.species_name ILIKE :search_txt', { search_txt: `%${petBreedSpeciesDto.search_txt.trim()}%` });
     }
 
-
-    return species.orderBy("species.id","DESC").offset(petBreedSpeciesDto?.skip || ZERO).limit(petBreedSpeciesDto?.limit || DEFAULT_LIMIT).getRawMany();
+    return species.orderBy("species.id", "DESC").offset(petBreedSpeciesDto?.skip || ZERO).limit(petBreedSpeciesDto?.limit || DEFAULT_LIMIT).getRawMany();
   }
 
   async getBreeds(petBreedSpeciesDto: PetBreedSpeciesDto) {
-    let breeds=this.breedRepository.createQueryBuilder('breed')
-    .select([
-      'breed.breed_name as breed_name',
-      'breed.id as id'
-    ])
-    .where('breed.status=:status',{
-      status:Status.Active
-    })
+    let breeds = this.breedRepository.createQueryBuilder('breed')
+      .select([
+        'breed.breed_name as breed_name',
+        'breed.id as id'
+      ])
+      .where('breed.status = :status', {
+        status: Status.Active
+      });
     if (petBreedSpeciesDto.breed_species_id) {
-    breeds.andWhere('breed.breedSpeciesId = :species_id', {
-      species_id: petBreedSpeciesDto.breed_species_id,
-    });
-  }
+      breeds.andWhere('breed.breedSpeciesId = :species_id', {
+        species_id: petBreedSpeciesDto.breed_species_id,
+      });
+    }
     if (petBreedSpeciesDto.search_txt) {
-     breeds.andWhere('breed.breed_name ILIKE :search_txt', { search_txt: `%${petBreedSpeciesDto.search_txt.trim()}%` })
+      breeds.andWhere('breed.breed_name ILIKE :search_txt', { search_txt: `%${petBreedSpeciesDto.search_txt.trim()}%` });
     }
 
-
     return breeds.getRawMany();
+  }
+
+  async getPetDocuments(petId: string, user: any) {
+    if (user.entityType !== 'HumanOwner') {
+      throw new UnauthorizedException('Only HumanOwner entities can access pet documents');
+    }
+
+    const pet = await this.petRepository.findOne({
+      where: { id: petId, status: Status.Active },
+      relations: ['human_owner'],
+    });
+    if (!pet) {
+      throw new NotFoundException('Pet not found');
+    }
+
+    if (pet.human_owner.id !== user.id) {
+      throw new UnauthorizedException('Unauthorized to access this pet\'s documents');
+    }
+
+    return this.documentRepository.find({
+      where: { pet: { id: petId }, status: Status.Active },
+      relations: ['pet', 'human_owner', 'staff', 'business'],
+    });
+  }
+
+  async addPetDocument(petId: string, uploadDocumentDto: UploadDocumentDto, file: Express.Multer.File, user: any, ipAddress: string, userAgent: string) {
+    if (user.entityType !== 'HumanOwner') {
+      throw new UnauthorizedException('Only HumanOwner entities can add pet documents');
+    }
+
+    const pet = await this.petRepository.findOne({
+      where: { id: petId, status: Status.Active },
+      relations: ['human_owner'],
+    });
+    if (!pet) {
+      throw new NotFoundException('Pet not found');
+    }
+
+    if (pet.human_owner.id !== user.id) {
+      throw new UnauthorizedException('Unauthorized to add documents for this pet');
+    }
+
+    const document = await this.documentsService.uploadDocument(
+      {
+        ...uploadDocumentDto,
+        pet: { id: petId },
+      } as any, // Cast to handle pet field
+      file,
+      user,
+    );
+
+    await this.auditLogRepository.save(
+      this.auditLogRepository.create({
+        entity_type: 'Document',
+        entity_id: document.id,
+        action: 'Create',
+        changes: { ...uploadDocumentDto, pet_id: petId, human_owner_id: user.id },
+        status: 'Success',
+        ip_address: ipAddress,
+        user_agent: userAgent,
+      }),
+    );
+
+    return document;
+  }
+
+  async updatePetDocument(id: string, uploadDocumentDto: UploadDocumentDto, file: Express.Multer.File, user: any, ipAddress: string, userAgent: string) {
+    if (user.entityType !== 'HumanOwner') {
+      throw new UnauthorizedException('Only HumanOwner entities can update pet documents');
+    }
+
+    const document = await this.documentRepository.findOne({
+      where: { id, status: Status.Active },
+      relations: ['pet', 'human_owner'],
+    });
+    if (!document) {
+      throw new NotFoundException('Document not found');
+    }
+
+    if (document.pet.human_owner.id !== user.id) {
+      throw new UnauthorizedException('Unauthorized to update this document');
+    }
+
+    const updatedDocument = await this.documentsService.updateDocument(
+      id,
+      uploadDocumentDto,
+      file,
+      user,
+    );
+
+    await this.auditLogRepository.save(
+      this.auditLogRepository.create({
+        entity_type: 'Document',
+        entity_id: updatedDocument.id,
+        action: 'Update',
+        changes: { ...uploadDocumentDto, pet_id: document.pet.id, human_owner_id: user.id },
+        status: 'Success',
+        ip_address: ipAddress,
+        user_agent: userAgent,
+      }),
+    );
+
+    return updatedDocument;
   }
 }

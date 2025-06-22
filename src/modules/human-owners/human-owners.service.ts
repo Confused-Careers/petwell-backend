@@ -6,7 +6,7 @@ import { UpdateHumanOwnerDto } from './dto/update-human-owner.dto';
 import { Status } from '../../shared/enums/status.enum';
 import { DocumentsService } from '../documents/documents.service';
 import { PetProfile } from '../pets/entities/pet-profile.entity';
-import { Multer } from 'multer';
+import { Express } from 'express';
 import { DocumentType } from '../../shared/enums/document-type.enum';
 
 @Injectable()
@@ -29,7 +29,7 @@ export class HumanOwnersService {
     return humanOwner;
   }
 
-  async updateProfile(user: any, updateHumanOwnerDto: UpdateHumanOwnerDto, file?: Multer.File) {
+  async updateProfile(user: any, updateHumanOwnerDto: UpdateHumanOwnerDto, file?: Express.Multer.File) {
     if (user.entityType !== 'HumanOwner') throw new UnauthorizedException('Only human owners can update their profile');
     const humanOwner = await this.humanOwnerRepository.findOne({ where: { id: user.id, status: Status.Active } });
     if (!humanOwner) throw new NotFoundException('Human owner not found');
@@ -37,8 +37,8 @@ export class HumanOwnersService {
     if (file) {
       const document = await this.documentsService.uploadDocument(
         {
-          name: `profile-picture-${user.id}`,
-          type: DocumentType.ProfilePicture,
+          document_name: `profile-picture-${user.id}`,
+          document_type: DocumentType.ProfilePicture,
           file_type: file.mimetype.split('/')[1].toUpperCase() as any,
         },
         file,
@@ -48,7 +48,7 @@ export class HumanOwnersService {
     }
 
     Object.assign(humanOwner, {
-      name: updateHumanOwnerDto.name || humanOwner.name,
+      human_owner_name: updateHumanOwnerDto.human_owner_name || humanOwner.human_owner_name,
       email: updateHumanOwnerDto.email || humanOwner.email,
       phone: updateHumanOwnerDto.phone || humanOwner.phone,
       location: updateHumanOwnerDto.location || humanOwner.location,

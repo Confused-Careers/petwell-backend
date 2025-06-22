@@ -59,11 +59,11 @@ export class AuthService {
       }
     }
 
-    if (!user || !(await bcrypt.compare(password, user.password))) {
+    if (!user) {
       await this.auditLogRepository.save(
         this.auditLogRepository.create({
           entity_type: entityType || 'Unknown',
-          entity_id: user?.id || 'unknown',
+          entity_id: 'unknown',
           action: 'Login',
           status: 'Failed',
           ip_address: ipAddress,
@@ -72,6 +72,35 @@ export class AuthService {
       );
       throw new UnauthorizedException('Invalid credentials');
     }
+
+    user.login_attempts += 1;
+    user.last_login_attempt = new Date();
+    await (user instanceof HumanOwner
+      ? this.humanOwnerRepository.save(user)
+      : user instanceof Staff
+      ? this.staffRepository.save(user)
+      : this.businessRepository.save(user));
+
+    if (!(await bcrypt.compare(password, user.password))) {
+      await this.auditLogRepository.save(
+        this.auditLogRepository.create({
+          entity_type: entityType,
+          entity_id: user.id,
+          action: 'Login',
+          status: 'Failed',
+          ip_address: ipAddress,
+          user_agent: userAgent,
+        }),
+      );
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    user.login_attempts = 0;
+    await (user instanceof HumanOwner
+      ? this.humanOwnerRepository.save(user)
+      : user instanceof Staff
+      ? this.staffRepository.save(user)
+      : this.businessRepository.save(user));
 
     const payload = {
       sub: user.id,
@@ -92,38 +121,27 @@ export class AuthService {
       }),
     );
 
-    return { 
-      access_token: token, 
-      entity_type: entityType 
-    };
+    return { access_token: token, entity_type: entityType };
   }
 
   async registerHumanOwner(dto: RegisterHumanOwnerDto) {
-<<<<<<< Updated upstream
-    const { username, name, location, phone, password } = dto;
-=======
-    console.log(dto)
-    const { username, name, email, password } = dto;
+    const { username, human_owner_name, email, location, phone, password } = dto;
 
-    // Check for unique email across all repositories
     const emailExists =
       (await this.humanOwnerRepository.findOne({ where: { email } })) ||
       (await this.staffRepository.findOne({ where: { email } })) ||
       (await this.businessRepository.findOne({ where: { email } }));
 
     if (emailExists) {
-      throw new HttpException('Email already exists',HttpStatus.BAD_REQUEST);
+      throw new HttpException('Email already exists', HttpStatus.BAD_REQUEST);
     }
->>>>>>> Stashed changes
 
-    // Check for unique username across HumanOwner and Staff
     const usernameExists =
       (await this.humanOwnerRepository.findOne({ where: { username } })) ||
       (await this.staffRepository.findOne({ where: { username } }));
 
     if (usernameExists) {
-            throw new HttpException('Username already exist',HttpStatus.BAD_REQUEST);
-
+      throw new HttpException('Username already exists', HttpStatus.BAD_REQUEST);
     }
 
     const queryRunner = this.dataSource.createQueryRunner();
@@ -134,26 +152,26 @@ export class AuthService {
       const hashedPassword = await bcrypt.hash(password, 10);
       const otpCode = OtpUtil.generateOtp();
       const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
+      const otpSentAt = new Date();
 
       const humanOwner = this.humanOwnerRepository.create({
         username,
-        name,
+        human_owner_name,
+        email,
         location,
         phone,
         password: hashedPassword,
+        previous_passwords: JSON.stringify([hashedPassword]),
         otp_code: otpCode,
+        otp_sent_at: otpSentAt,
         otp_expires_at: otpExpiresAt,
         otp_type: 'Registration',
       });
 
-<<<<<<< Updated upstream
-=======
-      // await this.nodeMailerService.sendOtpEmail(email, otpCode);
-      console.log(otpCode)
->>>>>>> Stashed changes
+      await this.nodeMailerService.sendOtpEmail(email, otpCode);
       await queryRunner.manager.save(humanOwner);
       await queryRunner.commitTransaction();
-      
+
       return { message: 'Human owner registered successfully' };
     } catch (error) {
       await queryRunner.rollbackTransaction();
@@ -164,25 +182,23 @@ export class AuthService {
   }
 
   async registerStaff(dto: RegisterStaffDto) {
-    const { username, name, email, password, role, business_id } = dto;
+    const { username, staff_name, email, password, role, business_id } = dto;
 
-    // Check for unique email across all repositories
     const emailExists =
       (await this.humanOwnerRepository.findOne({ where: { email } })) ||
       (await this.staffRepository.findOne({ where: { email } })) ||
       (await this.businessRepository.findOne({ where: { email } }));
 
     if (emailExists) {
-      throw new UnauthorizedException('Email already exists');
+      throw new HttpException('Email already exists', HttpStatus.BAD_REQUEST);
     }
 
-    // Check for unique username across HumanOwner and Staff
     const usernameExists =
       (await this.humanOwnerRepository.findOne({ where: { username } })) ||
       (await this.staffRepository.findOne({ where: { username } }));
 
     if (usernameExists) {
-      throw new UnauthorizedException('Username already exists');
+      throw new HttpException('Username already exists', HttpStatus.BAD_REQUEST);
     }
 
     const business = await this.businessRepository.findOne({ where: { id: business_id } });
@@ -196,24 +212,26 @@ export class AuthService {
       const hashedPassword = await bcrypt.hash(password, 10);
       const otpCode = OtpUtil.generateOtp();
       const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
+      const otpSentAt = new Date();
 
       const staff = this.staffRepository.create({
         username,
-        name,
+        staff_name: staff_name,
         email,
         password: hashedPassword,
-        role,
+        role_name: role,
         business,
+        previous_passwords: JSON.stringify([hashedPassword]),
         otp_code: otpCode,
+        otp_sent_at: otpSentAt,
         otp_expires_at: otpExpiresAt,
         otp_type: 'Registration',
       });
 
       await this.nodeMailerService.sendOtpEmail(email, otpCode);
-
       await queryRunner.manager.save(staff);
       await queryRunner.commitTransaction();
-      
+
       return { message: 'OTP sent to email' };
     } catch (error) {
       await queryRunner.rollbackTransaction();
@@ -224,16 +242,15 @@ export class AuthService {
   }
 
   async registerBusiness(dto: RegisterBusinessDto) {
-    const { name, email, phone, password, description, website, instagram, facebook, x } = dto;
+    const { business_name, email, phone, password, description, website, instagram, facebook, x } = dto;
 
-    // Check for unique email across all repositories
     const emailExists =
       (await this.humanOwnerRepository.findOne({ where: { email } })) ||
       (await this.staffRepository.findOne({ where: { email } })) ||
       (await this.businessRepository.findOne({ where: { email } }));
 
     if (emailExists) {
-      throw new UnauthorizedException('Email already exists');
+      throw new HttpException('Email already exists', HttpStatus.BAD_REQUEST);
     }
 
     const queryRunner = this.dataSource.createQueryRunner();
@@ -244,6 +261,7 @@ export class AuthService {
       const hashedPassword = await bcrypt.hash(password, 10);
       const otpCode = OtpUtil.generateOtp();
       const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
+      const otpSentAt = new Date();
 
       const socials = {
         instagram: instagram || null,
@@ -252,23 +270,24 @@ export class AuthService {
       };
 
       const business = this.businessRepository.create({
-        name,
+        business_name: business_name,
         email,
         phone,
         password: hashedPassword,
         description,
         website,
         socials,
+        previous_passwords: JSON.stringify([hashedPassword]),
         otp_code: otpCode,
+        otp_sent_at: otpSentAt,
         otp_expires_at: otpExpiresAt,
         otp_type: 'Registration',
       });
 
       await this.nodeMailerService.sendOtpEmail(email, otpCode);
-      
       await queryRunner.manager.save(business);
       await queryRunner.commitTransaction();
-      
+
       return { message: 'OTP sent to email' };
     } catch (error) {
       await queryRunner.rollbackTransaction();
@@ -298,6 +317,7 @@ export class AuthService {
     }
 
     user.otp_code = null;
+    user.otp_sent_at = null;
     user.otp_expires_at = null;
     user.otp_type = null;
 
@@ -338,10 +358,12 @@ export class AuthService {
     try {
       const otpCode = OtpUtil.generateOtp();
       const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
+      const otpSentAt = new Date();
 
       await this.nodeMailerService.sendOtpEmail(user.email, otpCode);
 
       user.otp_code = otpCode;
+      user.otp_sent_at = otpSentAt;
       user.otp_expires_at = otpExpiresAt;
       user.otp_type = otp_type;
 
@@ -376,6 +398,9 @@ export class AuthService {
 
     if (!user) throw new NotFoundException('User not found');
 
+    user.forget_password_attempts += 1;
+    user.last_forget_password_attempt = new Date();
+
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
@@ -383,10 +408,12 @@ export class AuthService {
     try {
       const otpCode = OtpUtil.generateOtp();
       const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
+      const otpSentAt = new Date();
 
       await this.nodeMailerService.sendOtpEmail(user.email, otpCode);
 
       user.otp_code = otpCode;
+      user.otp_sent_at = otpSentAt;
       user.otp_expires_at = otpExpiresAt;
       user.otp_type = 'PasswordReset';
 
@@ -429,10 +456,21 @@ export class AuthService {
       throw new UnauthorizedException('Invalid or expired OTP');
     }
 
-    user.password = await bcrypt.hash(new_password, 10);
+    const hashedPassword = await bcrypt.hash(new_password, 10);
+    let previousPasswords: string[] = [];
+    try {
+      previousPasswords = JSON.parse(user.previous_passwords || '[]');
+    } catch (e) {
+      previousPasswords = [];
+    }
+    previousPasswords.push(hashedPassword);
+    user.password = hashedPassword;
+    user.previous_passwords = JSON.stringify(previousPasswords);
     user.otp_code = null;
+    user.otp_sent_at = null;
     user.otp_expires_at = null;
     user.otp_type = null;
+    user.forget_password_attempts = 0;
 
     if (user instanceof HumanOwner) await this.humanOwnerRepository.save(user);
     else if (user instanceof Staff) await this.staffRepository.save(user);

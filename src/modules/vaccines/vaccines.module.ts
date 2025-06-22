@@ -7,10 +7,17 @@ import { PetProfile } from '../pets/entities/pet-profile.entity';
 import { Staff } from '../staff/entities/staff.entity';
 import { Business } from '../businesses/entities/business.entity';
 import { Team } from '../teams/entities/team.entity';
+import { Document } from '../documents/entities/document.entity';
+import { AuditLog } from '../audit-logs/entities/audit-log.entity';
+import { DocumentsModule } from '../documents/documents.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Vaccine, PetProfile, Staff, Business, Team])],
+  imports: [
+    TypeOrmModule.forFeature([Vaccine, PetProfile, Staff, Business, Team, Document, AuditLog]),
+    DocumentsModule, 
+  ],
   controllers: [VaccinesController],
   providers: [VaccinesService],
+  exports: [VaccinesService],
 })
 export class VaccinesModule {}

@@ -8,10 +8,15 @@ import { BreedSpecies } from './entities/breed-species.entity';
 import { Breed } from './entities/breed.entity';
 import { HumanOwner } from '../human-owners/entities/human-owner.entity';
 import { AuditLog } from '../audit-logs/entities/audit-log.entity';
+import { Document } from '../documents/entities/document.entity';
+import { DocumentsModule } from '../documents/documents.module';
 import { UuidValidationPipe } from '../../common/pipes/uuid-validation.pipe';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([PetProfile, BreedSpecies, Breed, HumanOwner, AuditLog])],
+  imports: [
+    TypeOrmModule.forFeature([PetProfile, BreedSpecies, Breed, HumanOwner, AuditLog, Document]),
+    DocumentsModule,
+  ],
   controllers: [BreedsSpeciesController, PetsController],
   providers: [PetsService, UuidValidationPipe],
 })

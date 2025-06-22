@@ -5,7 +5,7 @@ export class RegisterStaffDto {
   username: string;
 
   @IsString()
-  name: string;
+  staff_name: string;
 
   @IsEmail()
   email: string;

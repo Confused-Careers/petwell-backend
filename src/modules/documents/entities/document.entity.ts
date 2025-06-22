@@ -1,44 +1,49 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne } from 'typeorm';
-import { PetProfile } from '../../pets/entities/pet-profile.entity';
+import { Entity, Column, PrimaryGeneratedColumn, ManyToOne, JoinColumn } from 'typeorm';
 import { HumanOwner } from '../../human-owners/entities/human-owner.entity';
-import { Business } from '../../businesses/entities/business.entity';
 import { Staff } from '../../staff/entities/staff.entity';
+import { Business } from '../../businesses/entities/business.entity';
+import { PetProfile } from '../../pets/entities/pet-profile.entity';
 import { Status } from '../../../shared/enums/status.enum';
+import { DocumentType } from '../../../shared/enums/document-type.enum';
 
 @Entity('documents')
 export class Document {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @ManyToOne(() => PetProfile, { nullable: true })
-  pet: PetProfile;
-
-  @ManyToOne(() => HumanOwner, { nullable: true })
-  human_owner: HumanOwner;
-
-  @ManyToOne(() => Business, { nullable: true })
-  business: Business;
-
-  @ManyToOne(() => Staff, { nullable: true })
-  staff: Staff;
-
-  @Column({ type: 'enum', enum: ['Medical', 'License', 'Certificate', 'ProfilePicture', 'QRCode', 'Other'], nullable: false })
-  type: 'Medical' | 'License' | 'Certificate' | 'ProfilePicture' | 'QRCode' | 'Other';
+  @Column({ type: 'enum', enum: DocumentType })
+  document_type: DocumentType;
 
   @Column()
-  name: string;
+  document_name: string;
 
   @Column()
   document_url: string;
 
+  @Column()
+  file_type: string;
+
   @Column({ nullable: true })
   description: string;
 
-  @Column({ type: 'enum', enum: ['PDF', 'JPG', 'PNG', 'DOC', 'JPEG'], nullable: false })
-  file_type: 'PDF' | 'JPG' | 'PNG' | 'DOC' | 'JPEG';
-
   @Column({ nullable: true })
   license_reference: string;
+
+  @ManyToOne(() => HumanOwner, { nullable: true })
+  @JoinColumn({ name: 'humanOwnerId' })
+  human_owner: HumanOwner;
+
+  @ManyToOne(() => Staff, { nullable: true })
+  @JoinColumn({ name: 'staffId' })
+  staff: Staff;
+
+  @ManyToOne(() => Business, { nullable: true })
+  @JoinColumn({ name: 'businessId' })
+  business: Business;
+
+  @ManyToOne(() => PetProfile, { nullable: true })
+  @JoinColumn({ name: 'petId' })
+  pet: PetProfile;
 
   @Column({ type: 'enum', enum: Status, default: Status.Active })
   status: Status;

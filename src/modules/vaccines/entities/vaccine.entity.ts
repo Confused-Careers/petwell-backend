@@ -28,7 +28,10 @@ export class Vaccine {
   preventative: string;
 
   @Column({ nullable: true })
-  name: string;
+  vaccine_document_id: string;
+
+  @Column({ nullable: true })
+  vaccine_name: string;
 
   @Column({ type: 'date', nullable: true })
   date_administered: Date;

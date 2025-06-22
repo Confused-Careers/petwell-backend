@@ -1,9 +1,9 @@
-import { IsNotEmpty, IsString, IsDateString } from 'class-validator';
+import { IsNotEmpty, IsString, IsDateString, IsOptional } from 'class-validator';
 
 export class CreateVaccineDto {
   @IsNotEmpty()
   @IsString()
-  name: string;
+  vaccine_name: string;
 
   @IsNotEmpty()
   @IsDateString()
@@ -20,4 +20,8 @@ export class CreateVaccineDto {
   @IsNotEmpty()
   @IsString()
   pet_id: string;
+
+  @IsOptional()
+  @IsString()
+  vaccine_document_id?: string;
 }

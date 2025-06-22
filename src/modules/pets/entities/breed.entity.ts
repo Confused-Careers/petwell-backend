@@ -1,6 +1,6 @@
 import { Entity, Column, PrimaryGeneratedColumn, ManyToOne, JoinColumn } from 'typeorm';
 import { BreedSpecies } from './breed-species.entity';
-import { Status } from '@shared/enums/status.enum';
+import { Status } from '../../../shared/enums/status.enum';
 
 @Entity('breeds')
 export class Breed {
@@ -14,8 +14,11 @@ export class Breed {
   @JoinColumn({ name: 'breedSpeciesId' })
   breed_species: BreedSpecies;
 
-     @Column({ type: 'enum', enum: Status, default: Status.Active })
-      status: Status;
+  @Column({ type: 'text', nullable: true })
+  breed_description: string;
+
+  @Column({ type: 'enum', enum: Status, default: Status.Active })
+  status: Status;
 
   @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   created_at: Date;

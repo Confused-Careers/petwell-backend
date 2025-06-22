@@ -2,7 +2,7 @@ import { IsEmail, IsString, MinLength, IsUrl, IsOptional } from 'class-validator
 
 export class RegisterBusinessDto {
   @IsString()
-  name: string;
+  business_name: string;
 
   @IsEmail()
   email: string;

@@ -3,7 +3,7 @@ import { IsOptional, IsString, IsDateString } from 'class-validator';
 export class UpdateVaccineDto {
   @IsOptional()
   @IsString()
-  name?: string;
+  vaccine_name?: string;
 
   @IsOptional()
   @IsDateString()
@@ -20,4 +20,8 @@ export class UpdateVaccineDto {
   @IsOptional()
   @IsString()
   pet_id?: string;
+
+  @IsOptional()
+  @IsString()
+  vaccine_document_id?: string;
 }

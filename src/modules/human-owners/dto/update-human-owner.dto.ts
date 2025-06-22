@@ -3,7 +3,7 @@ import { IsOptional, IsString, IsEmail, IsNumber } from 'class-validator';
 export class UpdateHumanOwnerDto {
   @IsOptional()
   @IsString()
-  name?: string;
+  human_owner_name?: string;
 
   @IsOptional()
   @IsEmail()
