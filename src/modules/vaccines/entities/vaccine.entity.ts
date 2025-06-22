@@ -3,6 +3,7 @@ import { PetProfile } from '../../pets/entities/pet-profile.entity';
 import { HumanOwner } from '../../human-owners/entities/human-owner.entity';
 import { Staff } from '../../staff/entities/staff.entity';
 import { Status } from '../../../shared/enums/status.enum';
+import { Document } from '../../documents/entities/document.entity';
 
 @Entity('vaccines')
 export class Vaccine {
@@ -26,6 +27,10 @@ export class Vaccine {
 
   @Column({ nullable: true })
   preventative: string;
+
+  @ManyToOne(() => Document, { nullable: true })
+  @JoinColumn({ name: 'vaccine_document_id' })
+  vaccineDocument: Document;
 
   @Column({ nullable: true })
   vaccine_document_id: string;

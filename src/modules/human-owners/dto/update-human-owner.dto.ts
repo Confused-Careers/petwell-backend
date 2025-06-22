@@ -6,10 +6,6 @@ export class UpdateHumanOwnerDto {
   human_owner_name?: string;
 
   @IsOptional()
-  @IsEmail()
-  email?: string;
-
-  @IsOptional()
   @IsString()
   phone?: string;
 

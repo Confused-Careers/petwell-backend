@@ -1,17 +1,24 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToOne } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
 import { Business } from './business.entity';
-import { PetProfile } from '@modules/pets/entities/pet-profile.entity';
+import { PetProfile } from '../../pets/entities/pet-profile.entity';
+import { Staff } from '../../staff/entities/staff.entity';
 
 @Entity('business_pet_mapping')
 export class BusinessPetMapping {
   @PrimaryGeneratedColumn('uuid')
   map_id: string;
 
-  @OneToOne(() => Business, { nullable: false })
+  @ManyToOne(() => Business, { nullable: false })
+  @JoinColumn({ name: 'business_id' })
   business: Business;
-  
-  @OneToOne(() => PetProfile, { nullable: false })
+
+  @ManyToOne(() => PetProfile, { nullable: false })
+  @JoinColumn({ name: 'pet_id' })
   pet: PetProfile;
+
+  @ManyToOne(() => Staff, { nullable: true })
+  @JoinColumn({ name: 'staff_id' })
+  staff: Staff;
 
   @Column({ type: 'text', nullable: true })
   note: string;

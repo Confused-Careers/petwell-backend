@@ -7,11 +7,12 @@ import { Staff } from '../staff/entities/staff.entity';
 import { DocumentsModule } from '../documents/documents.module';
 import { PetProfile } from '../pets/entities/pet-profile.entity';
 import { BusinessPetMapping } from './entities/business-pet-mapping.entity';
+import { NodeMailerService } from '@shared/services/nodemailer.service';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Business, Staff, PetProfile, BusinessPetMapping]), DocumentsModule],
   controllers: [BusinessesController],
-  providers: [BusinessesService],
+  providers: [BusinessesService, NodeMailerService],
   exports: [BusinessesService],
 })
 export class BusinessesModule {}

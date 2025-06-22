@@ -9,12 +9,12 @@ import { Request } from 'express';
 export class LicensesController {
   constructor(private readonly licensesService: LicensesService) {}
 
-  @Post()
+  @Post('add')
   create(@Body() createLicenseDto: CreateLicenseDto, @Req() req: Request) {
     return this.licensesService.create(createLicenseDto, req.user, req.ip, req.headers['user-agent'] || 'unknown');
   }
 
-  @Get()
+  @Get('get-all')
   findAll(@Req() req: Request) {
     return this.licensesService.findAllByEntity(req.user);
   }

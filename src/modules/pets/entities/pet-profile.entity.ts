@@ -3,6 +3,7 @@ import { HumanOwner } from '../../human-owners/entities/human-owner.entity';
 import { BreedSpecies } from './breed-species.entity';
 import { Breed } from './breed.entity';
 import { Status } from '../../../shared/enums/status.enum';
+import { Document } from '../../documents/entities/document.entity';
 
 @Entity('pet_profiles')
 export class PetProfile {
@@ -56,6 +57,10 @@ export class PetProfile {
 
   @Column({ nullable: true })
   profile_picture_document_id: string;
+
+  @ManyToOne(() => Document, { nullable: true })
+  @JoinColumn({ name: 'profile_picture_document_id' })
+  profilePictureDocument: Document;
 
   @Column({ nullable: true })
   qr_code_id: string;

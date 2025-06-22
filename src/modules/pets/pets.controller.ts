@@ -1,14 +1,12 @@
-import { Controller, Post, Body, Get, Param, Put, Req, UseGuards, UseInterceptors, UploadedFile } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Param, Body, UseGuards, UseInterceptors, UploadedFile, Req } from '@nestjs/common';
+import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PetsService } from './pets.service';
 import { CreatePetDto } from './dto/create-pet.dto';
 import { UpdatePetDto } from './dto/update-pet.dto';
 import { UploadDocumentDto } from '@modules/documents/dto/upload-document.dto';
-import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
-import { Request } from 'express';
-import { UuidValidationPipe } from '../../common/pipes/uuid-validation.pipe';
-import { PetBreedSpeciesDto } from './dto/get-species-breed.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Express } from 'express';
+import { PetBreedSpeciesDto } from './dto/get-species-breed.dto';
 
 @Controller('pets')
 @UseGuards(JwtAuthGuard)
@@ -16,60 +14,70 @@ export class PetsController {
   constructor(private readonly petsService: PetsService) {}
 
   @Post('create')
-  create(@Body() createPetDto: CreatePetDto, @Req() req: Request) {
+  async create(@Body() createPetDto: CreatePetDto, @Req() req) {
     return this.petsService.create(createPetDto, req.user, req.ip, req.get('user-agent'));
   }
 
   @Get('owner')
-  findAllByOwner(@Req() req: Request) {
+  async findAllByOwner(@Req() req) {
     return this.petsService.findAllByOwner(req.user);
   }
 
   @Get('get/:id')
-  findOne(@Param('id', UuidValidationPipe) id: string, @Req() req: Request) {
+  async findOne(@Param('id') id: string, @Req() req) {
     return this.petsService.findOne(id, req.user);
   }
 
-  @Put('update/:id')
-  update(@Param('id', UuidValidationPipe) id: string, @Body() updatePetDto: UpdatePetDto, @Req() req: Request) {
-    return this.petsService.update(id, updatePetDto, req.user, req.ip, req.get('user-agent'));
+  @Patch('update/:id')
+  @UseInterceptors(FileInterceptor('profile_picture'))
+  async update(
+    @Param('id') id: string,
+    @Body() updatePetDto: UpdatePetDto,
+    @UploadedFile() file: Express.Multer.File,
+    @Req() req,
+  ) {
+    return this.petsService.update(id, updatePetDto, req.user, req.ip, req.get('user-agent'), file);
+  }
+
+  @Get('breeds-species')
+  async getAllBreedsAndSpecies() {
+    return this.petsService.getAllBreedsAndSpecies();
   }
 
   @Post('species')
-  getSpecies(@Body() petBreedSpeciesDto: PetBreedSpeciesDto) {
+  async getSpecies(@Body() petBreedSpeciesDto: PetBreedSpeciesDto) {
     return this.petsService.getSpecies(petBreedSpeciesDto);
   }
 
   @Post('breeds')
-  getBreeds(@Body() petBreedSpeciesDto: PetBreedSpeciesDto) {
+  async getBreeds(@Body() petBreedSpeciesDto: PetBreedSpeciesDto) {
     return this.petsService.getBreeds(petBreedSpeciesDto);
   }
 
-  @Get('documents/:id')
-  getPetDocuments(@Param('id', UuidValidationPipe) id: string, @Req() req: Request) {
-    return this.petsService.getPetDocuments(id, req.user);
+  @Get('documents/:petId')
+  async getPetDocuments(@Param('petId') petId: string, @Req() req) {
+    return this.petsService.getPetDocuments(petId, req.user);
   }
 
-  @Post('documents/:id')
+  @Post('documents/:petId')
   @UseInterceptors(FileInterceptor('file'))
-  addPetDocument(
-    @Param('id', UuidValidationPipe) id: string,
+  async addPetDocument(
+    @Param('petId') petId: string,
     @Body() uploadDocumentDto: UploadDocumentDto,
     @UploadedFile() file: Express.Multer.File,
-    @Req() req: Request,
+    @Req() req,
   ) {
-    return this.petsService.addPetDocument(id, uploadDocumentDto, file, req.user, req.ip, req.get('user-agent'));
+    return this.petsService.addPetDocument(petId, uploadDocumentDto, file, req.user, req.ip, req.get('user-agent'));
   }
 
-  @Put('documents/:id')
+  @Patch('documents/:id')
   @UseInterceptors(FileInterceptor('file'))
-  updatePetDocument(
-    @Param('id', UuidValidationPipe) id: string,
+  async updatePetDocument(
+    @Param('id') id: string,
     @Body() uploadDocumentDto: UploadDocumentDto,
     @UploadedFile() file: Express.Multer.File,
-    @Req() req: Request,
+    @Req() req,
   ) {
     return this.petsService.updatePetDocument(id, uploadDocumentDto, file, req.user, req.ip, req.get('user-agent'));
   }
-  
 }

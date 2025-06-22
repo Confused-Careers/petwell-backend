@@ -102,14 +102,14 @@ export class TeamsService {
       throw new UnauthorizedException('Only the team’s human owner can delete it');
     }
 
-    team.status = Status.Inactive;
-    return this.teamRepository.save(team);
+    await this.teamRepository.remove(team);
+    return { message: 'Team deleted successfully' };
   }
 
   async searchBusinesses(query: string, user: any) {
     const whereClause = { status: Status.Active };
     if (query) {
-      whereClause['name'] = Like(`%${query}%`);
+      whereClause['business_name'] = Like(`%${query}%`);
     }
 
     const allBusinesses = await this.businessRepository.find({
@@ -149,7 +149,7 @@ export class TeamsService {
     const businessIds = [...new Set(teams.map(team => team.business.id))];
     const whereClause = { status: Status.Active, business: { id: In(businessIds) }, role: 'Veterinarian' };
     if (query) {
-      whereClause['name'] = Like(`%${query}%`);
+      whereClause['staff_name'] = Like(`%${query}%`);
     }
 
     return this.staffRepository.find({

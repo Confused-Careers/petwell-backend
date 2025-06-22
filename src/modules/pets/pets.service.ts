@@ -15,6 +15,7 @@ import { Status } from '@shared/enums/status.enum';
 import { PetBreedSpeciesDto } from './dto/get-species-breed.dto';
 import { DEFAULT_LIMIT, ZERO } from '@shared/utils/constants';
 import { Express } from 'express';
+import { DocumentType } from '@shared/enums/document-type.enum';
 
 @Injectable()
 export class PetsService {
@@ -61,7 +62,6 @@ export class PetsService {
       }
     }
 
-    // Convert dob string to Date if provided
     const petData = {
       ...createPetDto,
       dob: createPetDto.dob ? new Date(createPetDto.dob) : undefined,
@@ -70,7 +70,6 @@ export class PetsService {
       breed,
     };
 
-    // Use unknown to safely cast to Partial<PetProfile>
     const pet = this.petRepository.create(petData as unknown as Partial<PetProfile>);
 
     const savedPet = await this.petRepository.save(pet);
@@ -97,7 +96,7 @@ export class PetsService {
 
     return this.petRepository.find({
       where: { human_owner: { id: user.id }, status: Status.Active },
-      relations: ['breed_species', 'breed', 'human_owner'],
+      relations: ['breed_species', 'breed', 'human_owner', 'profilePictureDocument'],
     });
   }
 
@@ -108,7 +107,7 @@ export class PetsService {
 
     const pet = await this.petRepository.findOne({
       where: { id, status: Status.Active },
-      relations: ['human_owner', 'breed_species', 'breed'],
+      relations: ['human_owner', 'breed_species', 'breed', 'profilePictureDocument'],
     });
     if (!pet) {
       throw new NotFoundException('Pet not found');
@@ -121,7 +120,7 @@ export class PetsService {
     return pet;
   }
 
-  async update(id: string, updatePetDto: UpdatePetDto, user: any, ipAddress: string, userAgent: string) {
+  async update(id: string, updatePetDto: UpdatePetDto, user: any, ipAddress: string, userAgent: string, file?: Express.Multer.File) {
     if (user.entityType !== 'HumanOwner') {
       throw new UnauthorizedException('Only HumanOwner entities can update pets');
     }
@@ -148,7 +147,7 @@ export class PetsService {
       }
     }
 
-    let breed: Breed | null = (pet as any).breed || null; // Fallback for TypeScript
+    let breed: Breed | null = pet.breed || null;
     if (updatePetDto.breed_id) {
       breed = await this.breedRepository.findOne({
         where: { id: updatePetDto.breed_id, breed_species: { id: breedSpecies.id } },
@@ -160,12 +159,36 @@ export class PetsService {
       breed = null;
     }
 
-    // Convert dob string to Date if provided
+    let profilePictureDocumentId: string | null = pet.profile_picture_document_id;
+    if (file) {
+      const document = await this.documentsService.uploadDocument(
+        {
+          document_name: `pet-profile-picture-${id}`,
+          document_type: DocumentType.ProfilePicture,
+          file_type: (() => {
+            const allowedTypes = ['PDF', 'JPG', 'PNG', 'DOC', 'JPEG'] as const;
+            const type = file && typeof file.mimetype === 'string'
+              ? file.mimetype.split('/')[1]?.toUpperCase()
+              : undefined;
+            if (!type || !allowedTypes.includes(type as any)) {
+              throw new BadRequestException('Unsupported file type');
+            }
+            return type as typeof allowedTypes[number];
+          })(),
+        },
+        file,
+        user,
+        id,
+      );
+      profilePictureDocumentId = document.id;
+    }
+
     const updatedData = {
       ...updatePetDto,
       dob: updatePetDto.dob ? new Date(updatePetDto.dob) : pet.dob,
       breed_species: breedSpecies,
       breed,
+      profile_picture_document_id: profilePictureDocumentId,
     };
 
     Object.assign(pet, updatedData);
@@ -177,7 +200,7 @@ export class PetsService {
         entity_type: 'PetProfile',
         entity_id: id,
         action: 'Update',
-        changes: { ...updatePetDto, human_owner_id: user.id },
+        changes: { ...updatePetDto, human_owner_id: user.id, profile_picture_document_id: profilePictureDocumentId },
         status: 'Success',
         ip_address: ipAddress,
         user_agent: userAgent,
@@ -250,6 +273,7 @@ export class PetsService {
       where: { id: petId, status: Status.Active },
       relations: ['human_owner'],
     });
+
     if (!pet) {
       throw new NotFoundException('Pet not found');
     }
@@ -258,10 +282,12 @@ export class PetsService {
       throw new UnauthorizedException('Unauthorized to access this pet\'s documents');
     }
 
-    return this.documentRepository.find({
+    const petDocuments = await this.documentRepository.find({
       where: { pet: { id: petId }, status: Status.Active },
       relations: ['pet', 'human_owner', 'staff', 'business'],
     });
+
+    return petDocuments;
   }
 
   async addPetDocument(petId: string, uploadDocumentDto: UploadDocumentDto, file: Express.Multer.File, user: any, ipAddress: string, userAgent: string) {
@@ -284,10 +310,11 @@ export class PetsService {
     const document = await this.documentsService.uploadDocument(
       {
         ...uploadDocumentDto,
-        pet: { id: petId },
-      } as any, // Cast to handle pet field
+        pet_id: petId,
+      },
       file,
       user,
+      petId
     );
 
     await this.auditLogRepository.save(
@@ -312,10 +339,14 @@ export class PetsService {
 
     const document = await this.documentRepository.findOne({
       where: { id, status: Status.Active },
-      relations: ['pet', 'human_owner'],
+      relations: ['pet', 'human_owner', 'pet.human_owner'],
     });
     if (!document) {
       throw new NotFoundException('Document not found');
+    }
+
+    if (!document.pet) {
+      throw new BadRequestException('Document is not associated with a pet');
     }
 
     if (document.pet.human_owner.id !== user.id) {
@@ -324,7 +355,10 @@ export class PetsService {
 
     const updatedDocument = await this.documentsService.updateDocument(
       id,
-      uploadDocumentDto,
+      {
+        ...uploadDocumentDto,
+        pet_id: document.pet.id,
+      },
       file,
       user,
     );

@@ -1,17 +1,20 @@
 import { IsOptional, IsString, IsInt, IsBoolean, IsDateString, IsNumber, Min, Max, IsUUID, IsEnum } from 'class-validator';
+import { Transform } from 'class-transformer';
 import { Status } from '@shared/enums/status.enum';
 
 export class UpdatePetDto {
   @IsOptional()
   @IsString()
-  name?: string;
+  pet_name?: string;
 
   @IsOptional()
+  @Transform(({ value }) => (typeof value === 'string' ? parseInt(value, 10) : value))
   @IsInt()
   @Min(0)
   age?: number;
 
   @IsOptional()
+  @Transform(({ value }) => (typeof value === 'string' ? parseInt(value, 10) : value))
   @IsInt()
   @Min(0)
   weight?: number;
@@ -29,18 +32,21 @@ export class UpdatePetDto {
   location?: string;
 
   @IsOptional()
+  @Transform(({ value }) => (typeof value === 'string' ? parseFloat(value) : value))
   @IsNumber()
   @Min(-90)
   @Max(90)
   latitude?: number;
 
   @IsOptional()
+  @Transform(({ value }) => (typeof value === 'string' ? parseFloat(value) : value))
   @IsNumber()
   @Min(-180)
   @Max(180)
   longitude?: number;
 
   @IsOptional()
+  @Transform(({ value }) => value === 'true' || value === true)
   @IsBoolean()
   spay_neuter?: boolean;
 
@@ -59,10 +65,6 @@ export class UpdatePetDto {
   @IsOptional()
   @IsString()
   notes?: string;
-
-  @IsOptional()
-  @IsString()
-  profile_picture_document_id?: string;
 
   @IsOptional()
   @IsString()

@@ -132,6 +132,9 @@ export class VaccinesService {
     const query = this.vaccineRepository.createQueryBuilder('vaccine')
       .leftJoinAndSelect('vaccine.pet', 'pet')
       .leftJoinAndSelect('vaccine.staff', 'staff')
+      .leftJoinAndSelect('staff.business', 'business')
+      .leftJoinAndSelect('business.profilePictureDocument', 'profile_picture_document')
+      .leftJoinAndSelect('vaccine.vaccineDocument', 'vaccine_document')
       .leftJoinAndSelect('vaccine.human_owner', 'human_owner')
       .where('vaccine.status = :status', { status: Status.Active });
 
@@ -145,7 +148,7 @@ export class VaccinesService {
   async findOne(id: string) {
     const vaccine = await this.vaccineRepository.findOne({
       where: { id, status: Status.Active },
-      relations: ['pet', 'staff', 'human_owner'],
+      relations: ['pet', 'staff', 'human_owner', 'vaccineDocument'],
     });
     if (!vaccine) throw new NotFoundException('Vaccine not found');
     return vaccine;
@@ -166,7 +169,7 @@ export class VaccinesService {
         throw new UnauthorizedException('Business can only update vaccines for their staff');
       }
     }
-    if (user.entityType === 'HumanOwner' && vaccine.pet.human_owner.id !== user.id) {
+    if (user.entityType === 'HumanOwner' && vaccine.human_owner.id !== user.id) {
       throw new UnauthorizedException('Human owners can only update vaccines for their own pets');
     }
 
@@ -300,24 +303,21 @@ export class VaccinesService {
       throw new UnauthorizedException('Human owners can only delete vaccines for their own pets');
     }
 
-    vaccine.status = Status.Inactive;
-    return this.vaccineRepository.save(vaccine);
+    return this.vaccineRepository.delete(vaccine.id);
   }
 
   async findDoctors(petId?: string, businessId?: string) {
     const query = this.staffRepository.createQueryBuilder('staff')
       .leftJoinAndSelect('staff.business', 'business')
       .where('staff.role_name = :role', { role: 'Veterinarian' })
-      .andWhere('staff.status = :status', { status: Status.Active });
 
     if (petId) {
       query
-        .leftJoinAndSelect('teams', 'team', 'team.business_id = staff.business_id')
-        .andWhere('team.pet_id = :petId', { petId })
-        .andWhere('team.status = :status', { status: Status.Active });
+        .leftJoinAndSelect('teams', 'team', 'team.business.id = staff.business.id')
+        .andWhere('team.pet.id = :petId', { petId })
     }
     if (businessId) {
-      query.andWhere('staff.business_id = :businessId', { businessId });
+      query.andWhere('staff.business.id = :businessId', { businessId });
     }
 
     return query

@@ -1,3 +1,4 @@
+// src/modules/documents/documents.service.ts
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -10,6 +11,7 @@ import * as uuid from 'uuid';
 import { HumanOwner } from '../human-owners/entities/human-owner.entity';
 import { Staff } from '../staff/entities/staff.entity';
 import { Business } from '../businesses/entities/business.entity';
+import { PetProfile } from '../pets/entities/pet-profile.entity';
 
 interface User {
   id: string;
@@ -27,10 +29,17 @@ export class DocumentsService {
     private staffRepository: Repository<Staff>,
     @InjectRepository(Business)
     private businessRepository: Repository<Business>,
+    @InjectRepository(PetProfile) // Add PetProfile repository
+    private petRepository: Repository<PetProfile>,
     private awsService: AwsService,
   ) {}
 
-  async uploadDocument(uploadDocumentDto: UploadDocumentDto, file: Express.Multer.File, user: User) {
+  async uploadDocument(
+    uploadDocumentDto: UploadDocumentDto,
+    file: Express.Multer.File,
+    user: User,
+    petId?: string,
+  ) {
     const key = `${uploadDocumentDto.document_type.toLowerCase()}/${uuid.v4()}-${file.originalname}`;
     const uploadResult = await this.awsService.uploadFileToS3(key, file.originalname, file);
 
@@ -44,6 +53,8 @@ export class DocumentsService {
       human_owner: user.entityType === 'HumanOwner' ? { id: user.id } : null,
       staff: user.entityType === 'Staff' ? { id: user.id } : null,
       business: user.entityType === 'Business' ? { id: user.id } : null,
+      pet: petId ? { id: petId } : null, 
+
     });
 
     return this.documentRepository.save(document);
@@ -63,12 +74,23 @@ export class DocumentsService {
     const key = `${uploadDocumentDto.document_type.toLowerCase()}/${uuid.v4()}-${file.originalname}`;
     const uploadResult = await this.awsService.uploadFileToS3(key, file.originalname, file);
 
+    let pet: PetProfile | null = document.pet;
+    if (uploadDocumentDto.pet_id) {
+      pet = await this.petRepository.findOne({ where: { id: uploadDocumentDto.pet_id, status: Status.Active } });
+      if (!pet) {
+        throw new NotFoundException(`Pet with ID ${uploadDocumentDto.pet_id} not found`);
+      }
+    } else if (uploadDocumentDto.pet_id === null) {
+      pet = null;
+    }
+
     document.document_type = uploadDocumentDto.document_type;
     document.document_name = uploadDocumentDto.document_name;
     document.document_url = uploadResult;
     document.file_type = uploadDocumentDto.file_type;
     document.description = uploadDocumentDto.description;
     document.license_reference = uploadDocumentDto.license_reference;
+    document.pet = pet;
 
     if (user.entityType === 'HumanOwner') {
       const humanOwner = await this.humanOwnerRepository.findOne({ where: { id: user.id } });

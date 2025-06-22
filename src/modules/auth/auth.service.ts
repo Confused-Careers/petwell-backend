@@ -58,19 +58,26 @@ export class AuthService {
         if (user) entityType = 'Business';
       }
     }
-
+    
     if (!user) {
       await this.auditLogRepository.save(
-        this.auditLogRepository.create({
-          entity_type: entityType || 'Unknown',
-          entity_id: 'unknown',
-          action: 'Login',
-          status: 'Failed',
-          ip_address: ipAddress,
-          user_agent: userAgent,
-        }),
+       this.auditLogRepository.create({
+        entity_type: entityType || 'Unknown',
+        entity_id: 'unknown',
+        action: 'Login',
+        status: 'Failed',
+        ip_address: ipAddress,
+        user_agent: userAgent,
+      }),
       );
       throw new UnauthorizedException('Invalid credentials');
+    }
+
+    if (
+      (user instanceof HumanOwner || user instanceof Business) &&
+      user.is_verified === false
+    ) {
+      throw new UnauthorizedException('Email not verified');
     }
 
     user.login_attempts += 1;
@@ -172,7 +179,7 @@ export class AuthService {
       await queryRunner.manager.save(humanOwner);
       await queryRunner.commitTransaction();
 
-      return { message: 'Human owner registered successfully' };
+      return { message: 'OTP sent successfully, please verify it' };
     } catch (error) {
       await queryRunner.rollbackTransaction();
       throw error;
@@ -320,6 +327,11 @@ export class AuthService {
     user.otp_sent_at = null;
     user.otp_expires_at = null;
     user.otp_type = null;
+    
+    if (user instanceof HumanOwner || user instanceof Business) {
+      user.is_verified = true;
+      user.status = Status.Active;
+    }
 
     if (user instanceof HumanOwner) await this.humanOwnerRepository.save(user);
     else if (user instanceof Staff) await this.staffRepository.save(user);

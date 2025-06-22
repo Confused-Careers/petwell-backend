@@ -52,4 +52,9 @@ export class BusinessesController {
   async addPet(@Req() req, @Body() createBusinessPetMappingDto: CreateBusinessPetMappingDto) {
     return this.businessesService.addPet(req.user, createBusinessPetMappingDto);
   }
+
+  @Get('pets')
+  async getBusinessPets(@Req() req, @Query('page') page: string = '1', @Query('limit') limit: string = '10') {
+    return this.businessesService.getBusinessPets(req.user, parseInt(page), parseInt(limit));
+  }
 }

@@ -21,4 +21,8 @@ export class UploadDocumentDto {
   @IsOptional()
   @IsString()
   license_reference?: string;
+
+  @IsString()
+  @IsOptional()
+  pet_id?: string;
 }

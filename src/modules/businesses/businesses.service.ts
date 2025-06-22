@@ -14,6 +14,7 @@ import { DocumentsService } from '../documents/documents.service';
 import { Express } from 'express';
 import { DocumentType } from '../../shared/enums/document-type.enum';
 import * as bcrypt from 'bcrypt';
+import { NodeMailerService } from '@shared/services/nodemailer.service';
 
 @Injectable()
 export class BusinessesService {
@@ -27,13 +28,14 @@ export class BusinessesService {
     @InjectRepository(BusinessPetMapping)
     private businessPetMappingRepository: Repository<BusinessPetMapping>,
     private documentsService: DocumentsService,
+    private nodeMailerService: NodeMailerService,
   ) {}
 
   async getProfile(user: any) {
     if (user.entityType !== 'Business') throw new UnauthorizedException('Only businesses can access their profile');
     const business = await this.businessRepository.findOne({
       where: { id: user.id, status: Status.Active },
-      relations: ['profile_picture_document'],
+      relations: ['profilePictureDocument'],
     });
     if (!business) throw new NotFoundException('Business not found');
     return business;
@@ -45,16 +47,25 @@ export class BusinessesService {
     if (!business) throw new NotFoundException('Business not found');
 
     if (file) {
-      const document = await this.documentsService.uploadDocument(
-        {
-          document_name: `profile-picture-${user.id}`,
-          document_type: DocumentType.ProfilePicture,
-          file_type: file.mimetype.split('/')[1].toUpperCase() as any,
-        },
-        file,
-        user,
-      );
-      business.profile_picture_document_id = document.id;
+      try {
+        const allowedTypes = ['PDF', 'JPG', 'PNG', 'DOC', 'JPEG'];
+        const fileType = file.mimetype?.split('/')[1]?.toUpperCase();
+        if (!fileType || !allowedTypes.includes(fileType)) {
+          throw new BadRequestException('Unsupported file type');
+        }
+        const document = await this.documentsService.uploadDocument(
+          {
+            document_name: `profile-picture-${user.id}`,
+            document_type: DocumentType.ProfilePicture,
+            file_type: fileType as any,
+          },
+          file,
+          user,
+        );
+        business.profile_picture_document_id = document.id;
+      } catch (error) {
+        throw new BadRequestException(`File upload failed: ${error.message}`);
+      }
     }
 
     Object.assign(business, {
@@ -66,7 +77,11 @@ export class BusinessesService {
       description: updateBusinessDto.description || business.description,
     });
 
-    return this.businessRepository.save(business);
+    try {
+      return await this.businessRepository.save(business);
+    } catch (error) {
+      throw new BadRequestException(`Failed to update profile: ${error.message}`);
+    }
   }
 
   async addStaff(user: any, createStaffDto: CreateStaffDto) {
@@ -74,17 +89,27 @@ export class BusinessesService {
     const business = await this.businessRepository.findOne({ where: { id: user.id, status: Status.Active } });
     if (!business) throw new NotFoundException('Business not found');
 
-    const hashedPassword = await bcrypt.hash(createStaffDto.password, 10);
-    const staff = this.staffRepository.create({
-      username: createStaffDto.username,
-      staff_name: createStaffDto.staff_name,
-      email: createStaffDto.email,
-      password: hashedPassword,
-      role_name: createStaffDto.role_name,
-      business,
-    });
+    try {
+      const hashedPassword = await bcrypt.hash(createStaffDto.password, 10);
+      const staff = this.staffRepository.create({
+        username: createStaffDto.username,
+        staff_name: createStaffDto.staff_name,
+        email: createStaffDto.email,
+        password: hashedPassword,
+        role_name: createStaffDto.role_name,
+        business,
+      });
 
-    return this.staffRepository.save(staff);
+      await this.nodeMailerService.shareStaffCredentials(
+        staff.email,
+        staff.username,
+        createStaffDto.password,
+      );
+
+      return await this.staffRepository.save(staff);
+    } catch (error) {
+      throw new BadRequestException(`Failed to add staff: ${error.message}`);
+    }
   }
 
   async updateStaff(user: any, staffId: string, updateStaffDto: UpdateStaffDto) {
@@ -94,13 +119,17 @@ export class BusinessesService {
     });
     if (!staff) throw new NotFoundException('Staff not found or not associated with this business');
 
-    Object.assign(staff, {
-      staff_name: updateStaffDto.staff_name || staff.staff_name,
-      email: updateStaffDto.email || staff.email,
-      role_name: updateStaffDto.role_name || staff.role_name,
-    });
+    try {
+      Object.assign(staff, {
+        staff_name: updateStaffDto.staff_name || staff.staff_name,
+        email: updateStaffDto.email || staff.email,
+        role_name: updateStaffDto.role_name || staff.role_name,
+      });
 
-    return this.staffRepository.save(staff);
+      return await this.staffRepository.save(staff);
+    } catch (error) {
+      throw new BadRequestException(`Failed to update staff: ${error.message}`);
+    }
   }
 
   async removeStaff(user: any, staffId: string) {
@@ -110,23 +139,31 @@ export class BusinessesService {
     });
     if (!staff) throw new NotFoundException('Staff not found or not associated with this business');
 
-    staff.status = Status.Inactive;
-    return this.staffRepository.save(staff);
+    try {
+      await this.staffRepository.remove(staff);
+      return { message: 'Staff removed successfully' };
+    } catch (error) {
+      throw new BadRequestException(`Failed to remove staff: ${error.message}`);
+    }
   }
 
   async getStaffList(user: any, page: number = 1, limit: number = 10) {
     if (user.entityType !== 'Business') throw new UnauthorizedException('Only businesses can list staff');
-    const [result, total] = await this.staffRepository.findAndCount({
-      where: { business: { id: user.id }, status: Status.Active },
-      take: limit,
-      skip: (page - 1) * limit,
-    });
-    return {
-      data: result,
-      total,
-      page,
-      limit,
-    };
+    try {
+      const [result, total] = await this.staffRepository.findAndCount({
+        where: { business: { id: user.id }, status: Status.Active },
+        take: limit,
+        skip: (page - 1) * limit,
+      });
+      return {
+        data: result,
+        total,
+        page,
+        limit,
+      };
+    } catch (error) {
+      throw new BadRequestException(`Failed to retrieve staff list: ${error.message}`);
+    }
   }
 
   async addPet(user: any, createBusinessPetMappingDto: CreateBusinessPetMappingDto) {
@@ -134,24 +171,69 @@ export class BusinessesService {
     const business = await this.businessRepository.findOne({ where: { id: user.id, status: Status.Active } });
     if (!business) throw new NotFoundException('Business not found');
 
-    const pet = await this.petRepository.findOne({ where: { id: createBusinessPetMappingDto.pet_id, status: Status.Active } });
+    const pet = await this.petRepository.findOne({
+      where: { id: createBusinessPetMappingDto.pet_id, status: Status.Active },
+      relations: ['breed_species', 'breed', 'human_owner', 'profilePictureDocument'],
+    });
     if (!pet) throw new NotFoundException('Pet not found');
+
+    let staff: Staff | null = null;
+    if (createBusinessPetMappingDto.staff_id) {
+      staff = await this.staffRepository.findOne({
+        where: { id: createBusinessPetMappingDto.staff_id, status: Status.Active, business: { id: user.id } },
+      });
+      if (!staff) throw new NotFoundException('Staff not found or not associated with this business');
+    }
 
     const existingMapping = await this.businessPetMappingRepository.findOne({
       where: { business: { id: user.id }, pet: { id: createBusinessPetMappingDto.pet_id } },
     });
-    if (existingMapping)
-      throw new BadRequestException(
-        'This pet is already associated with the business',
-      );
+    if (existingMapping) throw new BadRequestException('This pet is already associated with the business');
 
-    const mapping = this.businessPetMappingRepository.create({
-      business,
-      pet,
-      title: createBusinessPetMappingDto.title,
-      note: createBusinessPetMappingDto.note,
-    });
+    try {
+      const mapping = this.businessPetMappingRepository.create({
+        business,
+        pet,
+        staff,
+        title: createBusinessPetMappingDto.title,
+        note: createBusinessPetMappingDto.note,
+      });
 
-    return this.businessPetMappingRepository.save(mapping);
+      return await this.businessPetMappingRepository.save(mapping);
+    } catch (error) {
+      throw new BadRequestException(`Failed to create pet mapping: ${error.message}`);
+    }
+  }
+
+  async getBusinessPets(user: any, page: number = 1, limit: number = 10) {
+    if (user.entityType !== 'Business') throw new UnauthorizedException('Only businesses can access their pet mappings');
+    const business = await this.businessRepository.findOne({ where: { id: user.id, status: Status.Active } });
+    if (!business) throw new NotFoundException('Business not found');
+
+    try {
+      const [mappings, total] = await this.businessPetMappingRepository.findAndCount({
+        where: { business: { id: user.id } },
+        relations: ['pet', 'pet.breed_species', 'pet.breed', 'pet.human_owner', 'pet.profilePictureDocument', 'staff'],
+        take: limit,
+        skip: (page - 1) * limit,
+      });
+
+      return {
+        data: mappings.map((mapping) => ({
+          map_id: mapping.map_id,
+          title: mapping.title,
+          note: mapping.note,
+          created_at: mapping.created_at,
+          updated_at: mapping.updated_at,
+          pet: mapping.pet,
+          staff: mapping.staff ? { id: mapping.staff.id, staff_name: mapping.staff.staff_name } : null,
+        })),
+        total,
+        page,
+        limit,
+      };
+    } catch (error) {
+      throw new BadRequestException(`Failed to retrieve pet mappings: ${error.message}`);
+    }
   }
 }

@@ -1,5 +1,6 @@
-import { Entity, Column, PrimaryGeneratedColumn } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, ManyToOne, JoinColumn } from 'typeorm';
 import { Status } from '../../../shared/enums/status.enum';
+import { Document } from '../../documents/entities/document.entity';
 
 @Entity('businesses')
 export class Business {
@@ -26,6 +27,10 @@ export class Business {
 
   @Column({ nullable: true })
   profile_picture_document_id: string;
+  
+  @ManyToOne(() => Document, { nullable: true })
+  @JoinColumn({ name: 'profile_picture_document_id' })
+  profilePictureDocument: Document;
 
   @Column({ nullable: true })
   license_id: string;

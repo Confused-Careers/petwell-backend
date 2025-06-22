@@ -1,5 +1,6 @@
-import { Entity, Column, PrimaryGeneratedColumn } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, ManyToOne, JoinColumn } from 'typeorm';
 import { Status } from '../../../shared/enums/status.enum';
+import { Document } from '../../documents/entities/document.entity';
 
 @Entity('human_owners')
 export class HumanOwner {
@@ -33,6 +34,10 @@ export class HumanOwner {
   @Column({ nullable: true })
   profile_picture_document_id: string;
 
+  @ManyToOne(() => Document, { nullable: true })
+  @JoinColumn({ name: 'profile_picture_document_id' })
+  profilePictureDocument: Document;
+
   @Column({ nullable: true })
   license_id: string;
 
@@ -50,6 +55,9 @@ export class HumanOwner {
 
   @Column({ type: 'timestamp', nullable: true })
   otp_expires_at: Date;
+
+  @Column({ default: false })
+  is_verified: boolean;
 
   @Column({ type: 'enum', enum: ['Registration', 'PasswordReset'], nullable: true })
   otp_type: 'Registration' | 'PasswordReset';

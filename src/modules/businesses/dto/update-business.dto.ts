@@ -1,4 +1,5 @@
-import { IsOptional, IsString, IsEmail, IsObject } from 'class-validator';
+import { IsOptional, IsString, IsEmail, IsObject, ValidateIf } from 'class-validator';
+import { Transform } from 'class-transformer';
 
 export class UpdateBusinessDto {
   @IsOptional()
@@ -18,8 +19,20 @@ export class UpdateBusinessDto {
   website?: string;
 
   @IsOptional()
-  @IsObject()
-  socials?: any;
+  @Transform(({ value }) => {
+    if (typeof value === 'string' && value.trim() !== '') {
+      try {
+        const parsed = JSON.parse(value);
+        return typeof parsed === 'object' && parsed !== null ? parsed : undefined;
+      } catch (e) {
+        return undefined; 
+      }
+    }
+    return undefined;
+  })
+  @ValidateIf((o) => o.socials !== undefined)
+  @IsObject({ message: 'socials must be a valid JSON object' })
+  socials?: Record<string, any>;
 
   @IsOptional()
   @IsString()

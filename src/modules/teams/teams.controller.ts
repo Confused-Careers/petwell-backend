@@ -9,27 +9,27 @@ import { UpdateTeamDto } from './dto/update-team.dto';
 export class TeamsController {
   constructor(private readonly teamsService: TeamsService) {}
 
-  @Post()
+  @Post('create')
   async create(@Body() createTeamDto: CreateTeamDto, @Req() req) {
     return this.teamsService.create(createTeamDto, req.user);
   }
 
-  @Get()
+  @Get('getAll')
   async findAll(@Req() req) {
     return this.teamsService.findAll(req.user);
   }
 
-  @Get(':id')
+  @Get('getById/:id')
   async findOne(@Param('id') id: string) {
     return this.teamsService.findOne(id);
   }
 
-  @Patch(':id')
+  @Patch('update/:id')
   async update(@Param('id') id: string, @Body() updateTeamDto: UpdateTeamDto, @Req() req) {
     return this.teamsService.update(id, updateTeamDto, req.user);
   }
 
-  @Delete(':id')
+  @Delete('delete/:id')
   async remove(@Param('id') id: string, @Req() req) {
     return this.teamsService.remove(id, req.user);
   }

@@ -21,10 +21,12 @@ export class HumanOwnersService {
 
   async getProfile(user: any) {
     if (user.entityType !== 'HumanOwner') throw new UnauthorizedException('Only human owners can access their profile');
-    const humanOwner = await this.humanOwnerRepository.findOne({
+
+    let humanOwner = await this.humanOwnerRepository.findOne({
       where: { id: user.id, status: Status.Active },
-      relations: ['profile_picture_document'],
+      relations: ['profilePictureDocument'],
     });
+
     if (!humanOwner) throw new NotFoundException('Human owner not found');
     return humanOwner;
   }
@@ -49,7 +51,6 @@ export class HumanOwnersService {
 
     Object.assign(humanOwner, {
       human_owner_name: updateHumanOwnerDto.human_owner_name || humanOwner.human_owner_name,
-      email: updateHumanOwnerDto.email || humanOwner.email,
       phone: updateHumanOwnerDto.phone || humanOwner.phone,
       location: updateHumanOwnerDto.location || humanOwner.location,
       latitude: updateHumanOwnerDto.latitude || humanOwner.latitude,

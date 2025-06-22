@@ -22,8 +22,8 @@ export class VaccinesController {
     return this.vaccinesService.create(createVaccineDto, req.user, file, req.ip, req.get('user-agent'));
   }
 
-  @Get('getAllPetVaccines')
-  async findAll(@Query('petId') petId?: string) {
+  @Get('getAllPetVaccines/:id')
+  async findAll(@Param('petId') petId?: string) {
     return this.vaccinesService.findAll(petId);
   }
 

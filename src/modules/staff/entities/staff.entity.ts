@@ -1,6 +1,7 @@
-import { Entity, Column, PrimaryGeneratedColumn, ManyToOne } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, ManyToOne, JoinColumn } from 'typeorm';
 import { Business } from '../../businesses/entities/business.entity';
 import { Status } from '../../../shared/enums/status.enum';
+import { Document } from '../../documents/entities/document.entity';
 
 @Entity('staff')
 export class Staff {
@@ -23,13 +24,26 @@ export class Staff {
   password: string;
 
   @Column({ nullable: true })
+  phone?: string;
+
+  @Column({ type: 'text', nullable: true })
+  address?: string;
+
+  @Column({ type: 'text', nullable: true })
+  bio?: string;
+
+  @Column({ nullable: true })
   token: string;
 
   @Column()
   role_name: string;
-
+  
   @Column({ nullable: true })
   profile_picture_document_id: string;
+
+  @ManyToOne(() => Document, { nullable: true })
+  @JoinColumn({ name: 'profile_picture_document_id' })
+  profilePictureDocument: Document;
 
   @Column({ nullable: true })
   qr_code_id: string;
@@ -46,7 +60,7 @@ export class Staff {
   @Column({ type: 'enum', enum: ['Registration', 'PasswordReset'], nullable: true })
   otp_type: 'Registration' | 'PasswordReset';
 
-  @Column()
+  @Column({ type: 'text', nullable: true })
   previous_passwords: string;
 
   @Column({ type: 'int', default: 0 })

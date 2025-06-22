@@ -1,29 +1,56 @@
 {
 	"info": {
-		"_postman_id": "58e7215f-be6c-41b4-8d11-fb386ca4598b",
-		"name": "PetWell API V1",
-		"description": "Postman collection for PetWell authentication endpoints.",
+		"_postman_id": "f49b5d65-7b12-4811-9db2-59b7968521fc",
+		"name": "PetWell API",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-		"_exporter_id": "41118292",
-		"_collection_link": "https://pixel4-7319.postman.co/workspace/Pixel-Workspace~b79b5054-65f0-4b56-89b7-4102885003b8/collection/41118292-58e7215f-be6c-41b4-8d11-fb386ca4598b?action=share&source=collection_link&creator=41118292"
+		"_exporter_id": "33269616"
 	},
 	"item": [
 		{
 			"name": "Auth",
 			"item": [
 				{
+					"name": "Login",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"\",\n  \"password\": \"password123\",\n  \"username\": \"newstaff\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/auth/login",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"auth",
+								"login"
+							]
+						}
+					},
+					"response": []
+				},
+				{
 					"name": "Register Human Owner",
 					"request": {
 						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
+						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\"username\": \"johndoe\",\"name\": \"John Doe\",\"email\": \"johndoe@gmail.com\",\"password\": \"secure123\",\"role\": \"Individual\"}"
+							"raw": "{\n  \"username\": \"john_doe\",\n  \"human_owner_name\": \"John Doe\",\n  \"email\": \"khushpatel3482@gmail.com\",\n  \"location\": \"New York\",\n  \"phone\": \"1234567890\",\n  \"password\": \"password123\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
 						},
 						"url": {
 							"raw": "{{baseUrl}}/api/v1/auth/register/human-owner",
@@ -37,63 +64,23 @@
 								"register",
 								"human-owner"
 							]
-						},
-						"description": "Registers a new human owner and sends a 6-digit OTP to the email."
-					},
-					"response": [
-						{
-							"name": "Success",
-							"originalRequest": {
-								"method": "POST",
-								"header": [
-									{
-										"key": "Content-Type",
-										"value": "application/json"
-									}
-								],
-								"body": {
-									"mode": "raw",
-									"raw": "{\"username\": \"johndoe\",\"name\": \"John Doe\",\"email\": \"john.doe@example.com\",\"password\": \"secure123\",\"role\": \"Individual\"}"
-								},
-								"url": {
-									"raw": "{{baseUrl}}/auth/register/human-owner",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"auth",
-										"register",
-										"human-owner"
-									]
-								}
-							},
-							"status": "OK",
-							"code": 200,
-							"_postman_previewlanguage": "json",
-							"header": [
-								{
-									"key": "Content-Type",
-									"value": "application/json"
-								}
-							],
-							"cookie": [],
-							"body": "{\"message\": \"OTP sent to email\"}"
 						}
-					]
+					},
+					"response": []
 				},
 				{
 					"name": "Register Staff",
 					"request": {
 						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
+						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\"username\": \"janestaff\",\"name\": \"Jane Smith\",\"email\": \"jane.smith@example.com\",\"password\": \"secure123\",\"role\": \"Veterinarian\",\"business_id\": \"550e8400-e29b-41d4-a716-446655440000\"}"
+							"raw": "{\n  \"username\": \"staff_user\",\n  \"staff_name\": \"Jane Smith\",\n  \"email\": \"jane@example.com\",\n  \"password\": \"password123\",\n  \"role\": \"Veterinarian\",\n  \"business_id\": \"{{businessId}}\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
 						},
 						"url": {
 							"raw": "{{baseUrl}}/api/v1/auth/register/staff",
@@ -107,63 +94,23 @@
 								"register",
 								"staff"
 							]
-						},
-						"description": "Registers a new staff member under a business and sends a 6-digit OTP."
-					},
-					"response": [
-						{
-							"name": "Success",
-							"originalRequest": {
-								"method": "POST",
-								"header": [
-									{
-										"key": "Content-Type",
-										"value": "application/json"
-									}
-								],
-								"body": {
-									"mode": "raw",
-									"raw": "{\"username\": \"janestaff\",\"name\": \"Jane Smith\",\"email\": \"jane.smith@example.com\",\"password\": \"secure123\",\"role\": \"Veterinarian\",\"business_id\": \"550e8400-e29b-41d4-a716-446655440000\"}"
-								},
-								"url": {
-									"raw": "{{baseUrl}}/auth/register/staff",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"auth",
-										"register",
-										"staff"
-									]
-								}
-							},
-							"status": "OK",
-							"code": 200,
-							"_postman_previewlanguage": "json",
-							"header": [
-								{
-									"key": "Content-Type",
-									"value": "application/json"
-								}
-							],
-							"cookie": [],
-							"body": "{\"message\": \"OTP sent to email\"}"
 						}
-					]
+					},
+					"response": []
 				},
 				{
 					"name": "Register Business",
 					"request": {
 						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
+						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\"name\": \"PetWell Clinic\",\"email\": \"clinic@example.com\",\"password\": \"secure123\"}"
+							"raw": "{\n  \"business_name\": \"Pet Clinic\",\n  \"email\": \"clinic@example.com\",\n  \"phone\": \"1234567890\",\n  \"password\": \"password123\",\n  \"description\": \"Veterinary services\",\n  \"website\": \"https://petclinic.com\",\n  \"instagram\": \"https://instagram.com/petclinic\",\n  \"facebook\": \"https://facebook.com/petclinic\",\n  \"x\": \"https://x.com/petclinic\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
 						},
 						"url": {
 							"raw": "{{baseUrl}}/api/v1/auth/register/business",
@@ -177,63 +124,23 @@
 								"register",
 								"business"
 							]
-						},
-						"description": "Registers a new business and sends a 6-digit OTP to the email."
-					},
-					"response": [
-						{
-							"name": "Success",
-							"originalRequest": {
-								"method": "POST",
-								"header": [
-									{
-										"key": "Content-Type",
-										"value": "application/json"
-									}
-								],
-								"body": {
-									"mode": "raw",
-									"raw": "{\"name\": \"PetWell Clinic\",\"email\": \"clinic@example.com\",\"password\": \"secure123\"}"
-								},
-								"url": {
-									"raw": "{{baseUrl}}/auth/register/business",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"auth",
-										"register",
-										"business"
-									]
-								}
-							},
-							"status": "OK",
-							"code": 200,
-							"_postman_previewlanguage": "json",
-							"header": [
-								{
-									"key": "Content-Type",
-									"value": "application/json"
-								}
-							],
-							"cookie": [],
-							"body": "{\"message\": \"OTP sent to email\"}"
 						}
-					]
+					},
+					"response": []
 				},
 				{
 					"name": "Verify OTP",
 					"request": {
 						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
+						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\"identifier\": \"john.doe@example.com\",\"otp_code\": \"123456\"}"
+							"raw": "{\n  \"identifier\": \"khushpatel3482@gmail.com\",\n  \"otp_code\": \"307044\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
 						},
 						"url": {
 							"raw": "{{baseUrl}}/api/v1/auth/verify-otp",
@@ -246,62 +153,23 @@
 								"auth",
 								"verify-otp"
 							]
-						},
-						"description": "Verifies the 6-digit OTP sent to the user's email or username."
-					},
-					"response": [
-						{
-							"name": "Success",
-							"originalRequest": {
-								"method": "POST",
-								"header": [
-									{
-										"key": "Content-Type",
-										"value": "application/json"
-									}
-								],
-								"body": {
-									"mode": "raw",
-									"raw": "{\"identifier\": \"john.doe@example.com\",\"otp_code\": \"123456\"}"
-								},
-								"url": {
-									"raw": "{{baseUrl}}/auth/verify-otp",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"auth",
-										"verify-otp"
-									]
-								}
-							},
-							"status": "OK",
-							"code": 200,
-							"_postman_previewlanguage": "json",
-							"header": [
-								{
-									"key": "Content-Type",
-									"value": "application/json"
-								}
-							],
-							"cookie": [],
-							"body": "{\"message\": \"OTP verified successfully\"}"
 						}
-					]
+					},
+					"response": []
 				},
 				{
 					"name": "Resend OTP",
 					"request": {
 						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
+						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\"email\": \"john.doe@example.com\",\"otp_type\": \"Registration\"}"
+							"raw": "{\n  \"email\": \"khushpatel3482@gmail.com\",\n  \"otp_type\": \"Registration\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
 						},
 						"url": {
 							"raw": "{{baseUrl}}/api/v1/auth/resend-otp",
@@ -314,130 +182,23 @@
 								"auth",
 								"resend-otp"
 							]
-						},
-						"description": "Resends a 6-digit OTP for registration or password reset."
-					},
-					"response": [
-						{
-							"name": "Success",
-							"originalRequest": {
-								"method": "POST",
-								"header": [
-									{
-										"key": "Content-Type",
-										"value": "application/json"
-									}
-								],
-								"body": {
-									"mode": "raw",
-									"raw": "{\"email\": \"john.doe@example.com\",\"otp_type\": \"Registration\"}"
-								},
-								"url": {
-									"raw": "{{baseUrl}}/auth/resend-otp",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"auth",
-										"resend-otp"
-									]
-								}
-							},
-							"status": "OK",
-							"code": 200,
-							"_postman_previewlanguage": "json",
-							"header": [
-								{
-									"key": "Content-Type",
-									"value": "application/json"
-								}
-							],
-							"cookie": [],
-							"body": "{\"message\": \"OTP resent to email\"}"
 						}
-					]
-				},
-				{
-					"name": "Login",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\"email\": \"john.doe@example.com\",\"password\": \"secure123\"}"
-						},
-						"url": {
-							"raw": "{{baseUrl}}/api/v1/auth/login",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"api",
-								"v1",
-								"auth",
-								"login"
-							]
-						},
-						"description": "Logs in a user with email or username and returns a JWT token."
 					},
-					"response": [
-						{
-							"name": "Success",
-							"originalRequest": {
-								"method": "POST",
-								"header": [
-									{
-										"key": "Content-Type",
-										"value": "application/json"
-									}
-								],
-								"body": {
-									"mode": "raw",
-									"raw": "{\"email\": \"john.doe@example.com\",\"password\": \"secure123\"}"
-								},
-								"url": {
-									"raw": "{{baseUrl}}/auth/login",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"auth",
-										"login"
-									]
-								}
-							},
-							"status": "OK",
-							"code": 200,
-							"_postman_previewlanguage": "json",
-							"header": [
-								{
-									"key": "Content-Type",
-									"value": "application/json"
-								}
-							],
-							"cookie": [],
-							"body": "{\"access_token\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...\"}"
-						}
-					]
+					"response": []
 				},
 				{
 					"name": "Forgot Password",
 					"request": {
 						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
+						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\"identifier\": \"john.doe@example.com\"}"
+							"raw": "{\n  \"identifier\": \"user@example.com\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
 						},
 						"url": {
 							"raw": "{{baseUrl}}/api/v1/auth/forgot-password",
@@ -450,62 +211,23 @@
 								"auth",
 								"forgot-password"
 							]
-						},
-						"description": "Sends a 6-digit OTP to the user's email or username for password reset."
-					},
-					"response": [
-						{
-							"name": "Success",
-							"originalRequest": {
-								"method": "POST",
-								"header": [
-									{
-										"key": "Content-Type",
-										"value": "application/json"
-									}
-								],
-								"body": {
-									"mode": "raw",
-									"raw": "{\"identifier\": \"john.doe@example.com\"}"
-								},
-								"url": {
-									"raw": "{{baseUrl}}/auth/forgot-password",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"auth",
-										"forgot-password"
-									]
-								}
-							},
-							"status": "OK",
-							"code": 200,
-							"_postman_previewlanguage": "json",
-							"header": [
-								{
-									"key": "Content-Type",
-									"value": "application/json"
-								}
-							],
-							"cookie": [],
-							"body": "{\"message\": \"OTP sent to email\"}"
 						}
-					]
+					},
+					"response": []
 				},
 				{
 					"name": "Reset Password",
 					"request": {
 						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
+						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\"email\": \"john.doe@example.com\",\"otp_code\": \"123456\",\"new_password\": \"newsecure123\"}"
+							"raw": "{\n  \"email\": \"user@example.com\",\n  \"otp_code\": \"123456\",\n  \"new_password\": \"newpassword123\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
 						},
 						"url": {
 							"raw": "{{baseUrl}}/api/v1/auth/reset-password",
@@ -518,64 +240,346 @@
 								"auth",
 								"reset-password"
 							]
-						},
-						"description": "Resets the user's password using the OTP."
-					},
-					"response": [
-						{
-							"name": "Success",
-							"originalRequest": {
-								"method": "POST",
-								"header": [
-									{
-										"key": "Content-Type",
-										"value": "application/json"
-									}
-								],
-								"body": {
-									"mode": "raw",
-									"raw": "{\"email\": \"john.doe@example.com\",\"otp_code\": \"123456\",\"new_password\": \"newsecure123\"}"
-								},
-								"url": {
-									"raw": "{{baseUrl}}/auth/reset-password",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"auth",
-										"reset-password"
-									]
-								}
-							},
-							"status": "OK",
-							"code": 200,
-							"_postman_previewlanguage": "json",
-							"header": [
-								{
-									"key": "Content-Type",
-									"value": "application/json"
-								}
-							],
-							"cookie": [],
-							"body": "{\"message\": \"Password reset successfully\"}"
 						}
-					]
+					},
+					"response": []
 				}
 			]
 		},
 		{
-			"name": "Licenses",
+			"name": "Businesses",
 			"item": [
 				{
-					"name": "Create License",
+					"name": "Get Business Profile",
 					"request": {
-						"method": "POST",
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/businesses/profile",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"businesses",
+								"profile"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Business Profile",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response includes updated business profile', function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('id');",
+									"    pm.expect(jsonData).to.have.property('business_name');",
+									"    pm.expect(jsonData).to.have.property('email');",
+									"    pm.expect(jsonData).to.have.property('profile_picture_document_id');",
+									"    pm.expect(jsonData.profilePictureDocument).to.be.oneOf([null, pm.expect.any(Object)]);",
+									"    if (jsonData.profilePictureDocument) {",
+									"        pm.expect(jsonData.profilePictureDocument).to.have.property('id');",
+									"        pm.expect(jsonData.profilePictureDocument).to.have.property('document_name');",
+									"        pm.expect(jsonData.profilePictureDocument).to.have.property('file_type');",
+									"    }",
+									"    pm.expect(jsonData).to.have.property('socials').and.satisfy(val => val === null || typeof val === 'object');",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PATCH",
 						"header": [
 							{
-								"key": "Authorization",
-								"value": "Bearer {{jwtToken}}",
+								"key": "Content-Type",
+								"value": "multipart/form-data",
 								"type": "text"
-							},
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "business_name",
+									"value": "PetWell Clinic",
+									"description": "Optional: Business name",
+									"type": "text"
+								},
+								{
+									"key": "email",
+									"value": "contact@petwellclinic.com",
+									"description": "Optional: Business email",
+									"type": "text"
+								},
+								{
+									"key": "phone",
+									"value": "+1234567890",
+									"description": "Optional: Business phone number",
+									"type": "text"
+								},
+								{
+									"key": "website",
+									"value": "https://www.petwellclinic.com",
+									"description": "Optional: Business website",
+									"type": "text"
+								},
+								{
+									"key": "socials",
+									"value": "{\"facebook\": \"https://facebook.com/petwell\", \"twitter\": \"https://twitter.com/petwell\"}",
+									"description": "Optional: Social media links as JSON string",
+									"type": "text"
+								},
+								{
+									"key": "description",
+									"value": "A premier pet care clinic offering top-notch services.",
+									"description": "Optional: Business description",
+									"type": "text"
+								},
+								{
+									"key": "profile_picture",
+									"description": "Optional: Profile picture file",
+									"type": "file",
+									"src": "/C:/Users/Family/Pictures/Screenshots/Screenshot 2025-06-19 212653.png"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/businesses/profile",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"businesses",
+								"profile"
+							]
+						},
+						"description": "Updates business profile with optional fields and profile picture."
+					},
+					"response": []
+				},
+				{
+					"name": "Add Staff",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"username\": \"newstaff\",\n  \"staff_name\": \"New Staff\",\n  \"email\": \"khush.patel.2026@gmail.com\",\n  \"password\": \"password123\",\n  \"role_name\": \"Veterinarian\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/businesses/staff",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"businesses",
+								"staff"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Staff",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PATCH",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"staff_name\": \"Updated Staff\",\n  \"email\": \"updatedstaff@example.com\",\n  \"role_name\": \"Veterinarian\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/businesses/staff/{{staffId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"businesses",
+								"staff",
+								"{{staffId}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Remove Staff",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/businesses/staff/{{staffId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"businesses",
+								"staff",
+								"{{staffId}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Staff List",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/businesses/staff/get?page=1&limit=10",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"businesses",
+								"staff",
+								"get"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "limit",
+									"value": "10"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Add Business Pet Mapping",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response includes pet mapping details', function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('map_id');",
+									"    pm.expect(jsonData).to.have.property('title');",
+									"    pm.expect(jsonData).to.have.property('pet');",
+									"    pm.expect(jsonData.pet).to.have.property('id', pm.environment.get('petId'));",
+									"    pm.expect(jsonData).to.have.property('staff').and.satisfy(val => val === null || val.id === pm.environment.get('staffId'));",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
 							{
 								"key": "Content-Type",
 								"value": "application/json",
@@ -584,46 +588,303 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"purchase_date\": \"2025-06-20\",\n  \"due_date\": \"2026-06-20\",\n  \"details\": \"Annual pet care license 1\",\n  \"license_plan\": \"Premium\",\n  \"duration\": 12,\n  \"status\": \"Active\"\n}"
+							"raw": "{\n  \"pet_id\": \"{{petId}}\",\n  \"staff_id\": \"{{staffId}}\",\n  \"title\": \"Veterinary Care\",\n  \"note\": \"Regular checkup for pet\"\n}"
 						},
 						"url": {
-							"raw": "{{baseUrl}}/api/v1/licenses",
+							"raw": "{{baseUrl}}/api/v1/businesses/pets",
 							"host": [
 								"{{baseUrl}}"
 							],
 							"path": [
 								"api",
 								"v1",
-								"licenses"
+								"businesses",
+								"pets"
 							]
 						},
-						"description": "Creates a new license for a HumanOwner or Business. Requires JWT authentication with a user matching the `entity_id` and `entity_type`. Errors: 404 (Entity not found), 401 (Unauthorized)."
+						"description": "Maps a pet to a business with optional staff assignment."
 					},
 					"response": []
 				},
 				{
-					"name": "Get Licenses by Entity",
-					"request": {
-						"method": "GET",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{jwtToken}}",
-								"type": "text"
+					"name": "Get Business Pets Mapping",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response includes paginated pet mappings', function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('data').and.to.be.an('array');",
+									"    pm.expect(jsonData).to.have.property('total').and.to.be.a('number');",
+									"    pm.expect(jsonData).to.have.property('page').and.to.equal('1');",
+									"    pm.expect(jsonData).to.have.property('limit').and.to.equal('10');",
+									"    if (jsonData.data.length > 0) {",
+									"        pm.expect(jsonData.data[0]).to.have.property('map_id');",
+									"        pm.expect(jsonData.data[0]).to.have.property('pet');",
+									"        pm.expect(jsonData.data[0]).to.have.property('staff').and.satisfy(val => val === null || val.hasOwnProperty('id'));",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript"
 							}
-						],
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
 						"url": {
-							"raw": "{{baseUrl}}/api/v1/licenses",
+							"raw": "{{baseUrl}}/api/v1/businesses/pets?page=1&limit=10",
 							"host": [
 								"{{baseUrl}}"
 							],
 							"path": [
 								"api",
 								"v1",
-								"licenses"
+								"businesses",
+								"pets"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "limit",
+									"value": "10"
+								}
 							]
 						},
-						"description": "Retrieves all licenses for a specific entity (HumanOwner or Business) by `entity_type` and `entity_id`. Requires JWT authentication with a user matching the `entity_id` and `entity_type`. Errors: 401 (Unauthorized)."
+						"description": "Retrieves paginated list of pets mapped to the business."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Human Owners",
+			"item": [
+				{
+					"name": "Get Human Owner Profile",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/human-owners/profile",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"human-owners",
+								"profile"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Human Owner Profile",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response includes updated profile', function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('id');",
+									"    pm.expect(jsonData).to.have.property('human_owner_name');",
+									"    pm.expect(jsonData).to.have.property('profile_picture_document_id');",
+									"    pm.expect(jsonData.profilePictureDocument).to.be.oneOf([null, pm.expect.any(Object)]);",
+									"    if (jsonData.profilePictureDocument) {",
+									"        pm.expect(jsonData.profilePictureDocument).to.have.property('id');",
+									"        pm.expect(jsonData.profilePictureDocument).to.have.property('document_name');",
+									"        pm.expect(jsonData.profilePictureDocument).to.have.property('file_type');",
+									"        pm.expect(jsonData.profilePictureDocument).to.have.property('file_path');",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "multipart/form-data",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "human_owner_name",
+									"value": "Updated Name",
+									"description": "Optional: Full name of the human owner",
+									"type": "text"
+								},
+								{
+									"key": "phone",
+									"value": "9876543210",
+									"description": "Optional: Phone number",
+									"type": "text"
+								},
+								{
+									"key": "location",
+									"value": "Los Angeles",
+									"description": "Optional: Location",
+									"type": "text"
+								},
+								{
+									"key": "profile_picture",
+									"description": "Optional: Profile picture file (e.g., JPG, PNG)",
+									"type": "file",
+									"src": "/C:/Users/Family/Pictures/Screenshots/Screenshot 2025-06-18 161524.png"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/human-owners/profile",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"human-owners",
+								"profile"
+							]
+						},
+						"description": "Updates the human owner profile with optional fields and an optional profile picture file."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Licenses",
+			"item": [
+				{
+					"name": "Add License",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"purchase_date\": \"2025-06-22\",\n  \"due_date\": \"2026-06-22\",\n  \"details\": \"Annual license\",\n  \"license_plan\": \"Premium\",\n  \"duration\": 12,\n  \"status\": \"Active\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/licenses/add",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"licenses",
+								"add"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Licenses",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/licenses/get-all",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"licenses",
+								"get-all"
+							]
+						}
 					},
 					"response": []
 				}
@@ -633,57 +894,31 @@
 			"name": "Pets",
 			"item": [
 				{
-					"name": "Get All Breeds and Species",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"pm.test('Status code is 200', function () {",
-									"    pm.response.to.have.status(200);",
-									"});",
-									"",
-									"pm.test('Response has species and breeds', function () {",
-									"    var jsonData = pm.response.json();",
-									"    pm.expect(jsonData).to.have.property('species');",
-									"    pm.expect(jsonData).to.have.property('breeds');",
-									"    pm.expect(jsonData.species).to.be.an('array');",
-									"    pm.expect(jsonData.breeds).to.be.an('object');",
-									"});",
-									"",
-									"// Save Dog and Cat breed IDs for later use",
-									"var jsonData = pm.response.json();",
-									"var dogSpecies = jsonData.species.find(s => s.name === 'Dog');",
-									"var catSpecies = jsonData.species.find(s => s.name === 'Cat');",
-									"if (dogSpecies && jsonData.breeds[dogSpecies.id]) {",
-									"    var labrador = jsonData.breeds[dogSpecies.id].find(b => b.name === 'Labrador Retriever');",
-									"    if (labrador) {",
-									"        pm.environment.set('dogBreedId', labrador.id);",
-									"    }",
-									"}",
-									"if (catSpecies && jsonData.breeds[catSpecies.id]) {",
-									"    var persian = jsonData.breeds[catSpecies.id].find(b => b.name === 'Persian');",
-									"    if (persian) {",
-									"        pm.environment.set('catBreedId', persian.id);",
-									"    }",
-									"}"
-								],
-								"type": "text/javascript",
-								"packages": {}
-							}
-						}
-					],
+					"name": "Create Pet",
 					"request": {
-						"method": "GET",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{jwtToken}}",
-								"type": "text"
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"pet_name\": \"Max\",\n  \"age\": 3,\n  \"weight\": 10,\n  \"breed_species_id\": \"{{breedSpeciesId}}\",\n  \"breed_id\": \"{{breedId}}\",\n  \"location\": \"New York\",\n  \"latitude\": 40.7128,\n  \"longitude\": -74.0060,\n  \"spay_neuter\": true,\n  \"color\": \"Brown\",\n  \"dob\": \"2022-01-01\",\n  \"microchip\": \"123456789\",\n  \"notes\": \"Friendly dog\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
 							}
-						],
+						},
 						"url": {
-							"raw": "{{baseUrl}}/api/v1/pets/breeds-species",
+							"raw": "{{baseUrl}}/api/v1/pets/create",
 							"host": [
 								"{{baseUrl}}"
 							],
@@ -691,153 +926,27 @@
 								"api",
 								"v1",
 								"pets",
-								"breeds-species"
+								"create"
 							]
-						},
-						"description": "Retrieves all breed species and their associated breeds."
-					},
-					"response": []
-				},
-				{
-					"name": "Create Pet (Dog)",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"pm.test('Status code is 200', function () {",
-									"    pm.response.to.have.status(200);",
-									"});",
-									"",
-									"pm.test('Response has pet ID', function () {",
-									"    var jsonData = pm.response.json();",
-									"    pm.expect(jsonData).to.have.property('id');",
-									"    pm.environment.set('petId', jsonData.id);",
-									"});"
-								],
-								"type": "text/javascript",
-								"packages": {}
-							}
 						}
-					],
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{jwtToken}}",
-								"type": "text"
-							},
-							{
-								"key": "Content-Type",
-								"value": "application/json",
-								"type": "text"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"name\": \"Buddy\",\n  \"age\": 3,\n  \"weight\": 25,\n  \"breed_species_id\": \"{{dogSpeciesId}}\",\n  \"breed_id\": \"{{dogBreedId}}\",\n  \"location\": \"New York, NY\",\n  \"latitude\": 40.7128,\n  \"longitude\": -74.0060,\n  \"spay_neuter\": true,\n  \"color\": \"Golden\",\n  \"dob\": \"2022-01-15\",\n  \"microchip\": \"123456789012345\",\n  \"notes\": \"Friendly and energetic\",\n  \"status\": \"Active\"\n}"
-						},
-						"url": {
-							"raw": "{{baseUrl}}/api/v1/pets",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"api",
-								"v1",
-								"pets"
-							]
-						},
-						"description": "Creates a pet profile for a dog (e.g., Labrador Retriever)."
-					},
-					"response": []
-				},
-				{
-					"name": "Create Pet (Cat)",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"pm.test('Status code is 200', function () {",
-									"    pm.response.to.have.status(200);",
-									"});",
-									"",
-									"pm.test('Response has pet ID', function () {",
-									"    var jsonData = pm.response.json();",
-									"    pm.expect(jsonData).to.have.property('id');",
-									"    pm.environment.set('petId', jsonData.id);",
-									"});"
-								],
-								"type": "text/javascript",
-								"packages": {}
-							}
-						}
-					],
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{jwtToken}}",
-								"type": "text"
-							},
-							{
-								"key": "Content-Type",
-								"value": "application/json",
-								"type": "text"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"name\": \"Whiskers\",\n  \"age\": 2,\n  \"weight\": 4,\n  \"breed_species_id\": \"{{catSpeciesId}}\",\n  \"breed_id\": \"{{catBreedId}}\",\n  \"location\": \"San Francisco, CA\",\n  \"latitude\": 37.7749,\n  \"longitude\": -122.4194,\n  \"spay_neuter\": true,\n  \"color\": \"White\",\n  \"dob\": \"2023-03-10\",\n  \"microchip\": \"987654321098765\",\n  \"notes\": \"Loves to nap in the sun\",\n  \"status\": \"Active\"\n}"
-						},
-						"url": {
-							"raw": "{{baseUrl}}/api/v1/pets",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"api",
-								"v1",
-								"pets"
-							]
-						},
-						"description": "Creates a pet profile for a cat (e.g., Persian)."
 					},
 					"response": []
 				},
 				{
 					"name": "Get All Pets by Owner",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"pm.test('Status code is 200', function () {",
-									"    pm.response.to.have.status(200);",
-									"});",
-									"",
-									"pm.test('Response is an array', function () {",
-									"    var jsonData = pm.response.json();",
-									"    pm.expect(jsonData).to.be.an('array');",
-									"});"
-								],
-								"type": "text/javascript",
-								"packages": {}
-							}
-						}
-					],
 					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
 						"method": "GET",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{jwtToken}}",
-								"type": "text"
-							}
-						],
+						"header": [],
 						"url": {
 							"raw": "{{baseUrl}}/api/v1/pets/owner",
 							"host": [
@@ -849,13 +958,43 @@
 								"pets",
 								"owner"
 							]
-						},
-						"description": "Retrieves all pet profiles owned by the authenticated human owner."
+						}
 					},
 					"response": []
 				},
 				{
 					"name": "Get Pet by ID",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/pets/get/{{petId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"pets",
+								"get",
+								"{{petId}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Pet Profile",
 					"event": [
 						{
 							"listen": "test",
@@ -865,10 +1004,17 @@
 									"    pm.response.to.have.status(200);",
 									"});",
 									"",
-									"pm.test('Response has pet details', function () {",
+									"pm.test('Response includes updated pet profile', function () {",
 									"    var jsonData = pm.response.json();",
-									"    pm.expect(jsonData).to.have.property('id');",
-									"    pm.expect(jsonData).to.have.property('name');",
+									"    pm.expect(jsonData).to.have.property('id', pm.environment.get('petId'));",
+									"    pm.expect(jsonData).to.have.property('pet_name');",
+									"    pm.expect(jsonData).to.have.property('profile_picture_document_id');",
+									"    pm.expect(jsonData.profilePictureDocument).to.be.oneOf([null, pm.expect.any(Object)]);",
+									"    if (jsonData.profilePictureDocument) {",
+									"        pm.expect(jsonData.profilePictureDocument).to.have.property('id');",
+									"        pm.expect(jsonData.profilePictureDocument).to.have.property('document_name');",
+									"        pm.expect(jsonData.profilePictureDocument).to.have.property('file_type');",
+									"    }",
 									"});"
 								],
 								"type": "text/javascript",
@@ -877,16 +1023,119 @@
 						}
 					],
 					"request": {
-						"method": "GET",
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PATCH",
 						"header": [
 							{
-								"key": "Authorization",
-								"value": "Bearer {{jwtToken}}",
+								"key": "Content-Type",
+								"value": "multipart/form-data",
 								"type": "text"
 							}
 						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "pet_name",
+									"value": "Buddy",
+									"description": "Optional: Pet name",
+									"type": "text"
+								},
+								{
+									"key": "age",
+									"value": "3",
+									"description": "Optional: Pet age",
+									"type": "text"
+								},
+								{
+									"key": "weight",
+									"value": "20",
+									"description": "Optional: Pet weight",
+									"type": "text"
+								},
+								{
+									"key": "breed_species_id",
+									"value": "{{breedSpeciesId}}",
+									"description": "Optional: Breed species ID",
+									"type": "text",
+									"disabled": true
+								},
+								{
+									"key": "breed_id",
+									"value": "{{breedId}}",
+									"description": "Optional: Breed ID",
+									"type": "text",
+									"disabled": true
+								},
+								{
+									"key": "location",
+									"value": "Los Angeles",
+									"description": "Optional: Location",
+									"type": "text"
+								},
+								{
+									"key": "latitude",
+									"value": "34.0522",
+									"description": "Optional: Latitude",
+									"type": "text",
+									"disabled": true
+								},
+								{
+									"key": "longitude",
+									"value": "-118.2437",
+									"description": "Optional: Longitude",
+									"type": "text",
+									"disabled": true
+								},
+								{
+									"key": "spay_neuter",
+									"value": "true",
+									"description": "Optional: Spay/neuter status",
+									"type": "text"
+								},
+								{
+									"key": "color",
+									"value": "Brown",
+									"description": "Optional: Pet color",
+									"type": "text"
+								},
+								{
+									"key": "dob",
+									"value": "2022-01-01",
+									"description": "Optional: Date of birth",
+									"type": "text"
+								},
+								{
+									"key": "microchip",
+									"value": "123456789",
+									"description": "Optional: Microchip number",
+									"type": "text"
+								},
+								{
+									"key": "notes",
+									"value": "Friendly pet",
+									"description": "Optional: Notes",
+									"type": "text"
+								},
+								{
+									"key": "profile_picture",
+									"description": "Optional: Profile picture file",
+									"type": "file",
+									"src": "/C:/Users/Family/Pictures/Screenshots/Screenshot 2025-06-22 135108.png"
+								}
+							]
+						},
 						"url": {
-							"raw": "{{baseUrl}}/api/v1/pets/{{petId}}",
+							"raw": "{{baseUrl}}/api/v1/pets/update/{{petId}}",
 							"host": [
 								"{{baseUrl}}"
 							],
@@ -894,15 +1143,216 @@
 								"api",
 								"v1",
 								"pets",
+								"update",
 								"{{petId}}"
 							]
 						},
-						"description": "Retrieves a single pet profile by its ID."
+						"description": "Updates pet profile with optional fields and profile picture."
 					},
 					"response": []
 				},
 				{
-					"name": "Update Pet",
+					"name": "Get Species",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"search_txt\": \"d\",\n  \"skip\": 0,\n  \"limit\": 10\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/pets/species",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"pets",
+								"species"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Breeds",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"breed_species_id\": \"{{breedSpeciesId}}\",\n  \"search_txt\": \"L\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/pets/breeds",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"pets",
+								"breeds"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Breeds and Species",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/pets/breeds-species",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"pets",
+								"breeds-species"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Pet Documents",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/pets/documents/{{petId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"pets",
+								"documents",
+								"{{petId}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Add Pet Document",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "document_name",
+									"value": "Pet Document",
+									"type": "text"
+								},
+								{
+									"key": "document_type",
+									"value": "Medical",
+									"type": "text"
+								},
+								{
+									"key": "file_type",
+									"value": "PDF",
+									"type": "text"
+								},
+								{
+									"key": "description",
+									"value": "Pet medical record",
+									"type": "text"
+								},
+								{
+									"key": "file",
+									"type": "file",
+									"src": "/C:/Users/Family/Pictures/Screenshots/Screenshot 2025-06-22 141000.png"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/pets/documents/{{petId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"pets",
+								"documents",
+								"{{petId}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Pet Document",
 					"event": [
 						{
 							"listen": "test",
@@ -912,10 +1362,17 @@
 									"    pm.response.to.have.status(200);",
 									"});",
 									"",
-									"pm.test('Response has updated pet details', function () {",
+									"pm.test('Response includes updated document details', function () {",
 									"    var jsonData = pm.response.json();",
-									"    pm.expect(jsonData).to.have.property('id');",
-									"    pm.expect(jsonData.name).to.equal('Buddy Updated');",
+									"    pm.expect(jsonData).to.have.property('id', pm.environment.get('documentId'));",
+									"    pm.expect(jsonData).to.have.property('document_name');",
+									"    pm.expect(jsonData).to.have.property('document_type');",
+									"    pm.expect(jsonData).to.have.property('file_type');",
+									"    pm.expect(jsonData).to.have.property('document_url');",
+									"    pm.expect(jsonData).to.have.property('pet');",
+									"    if (jsonData.pet) {",
+									"        pm.expect(jsonData.pet).to.have.property('id', pm.environment.get('petId'));",
+									"    }",
 									"});"
 								],
 								"type": "text/javascript"
@@ -923,67 +1380,726 @@
 						}
 					],
 					"request": {
-						"method": "PUT",
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PATCH",
 						"header": [
 							{
-								"key": "Authorization",
-								"value": "Bearer {{jwtToken}}",
-								"type": "text"
-							},
-							{
 								"key": "Content-Type",
-								"value": "application/json",
+								"value": "multipart/form-data",
 								"type": "text"
 							}
 						],
 						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"name\": \"Buddy Updated\",\n  \"age\": 4,\n  \"weight\": 26,\n  \"location\": \"Boston, MA\",\n  \"latitude\": 42.3601,\n  \"longitude\": -71.0589,\n  \"notes\": \"Still friendly, loves walks\"\n}"
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "document_name",
+									"value": "Updated Pet Medical Record",
+									"description": "Name of the document",
+									"type": "text"
+								},
+								{
+									"key": "document_type",
+									"value": "Medical",
+									"description": "Type of document (e.g., Medical, License)",
+									"type": "text"
+								},
+								{
+									"key": "file_type",
+									"value": "PDF",
+									"description": "File type (e.g., PDF, JPEG, PNG)",
+									"type": "text"
+								},
+								{
+									"key": "description",
+									"value": "Updated pet medical record for 2025",
+									"description": "Optional: Document description",
+									"type": "text"
+								},
+								{
+									"key": "pet_id",
+									"value": "{{petId}}",
+									"description": "Optional: ID of the pet",
+									"type": "text"
+								},
+								{
+									"key": "file",
+									"description": "Updated document file",
+									"type": "file",
+									"src": []
+								}
+							]
 						},
 						"url": {
-							"raw": "{{baseUrl}}/pets/{{petId}}",
+							"raw": "{{baseUrl}}/api/v1/pets/documents/{{documentId}}",
 							"host": [
 								"{{baseUrl}}"
 							],
 							"path": [
+								"api",
+								"v1",
 								"pets",
-								"{{petId}}"
+								"documents",
+								"{{documentId}}"
 							]
 						},
-						"description": "Updates a pet profile by its ID."
+						"description": "Updates a pet document."
 					},
 					"response": []
 				}
 			]
 		},
 		{
-			"name": "Root ",
-			"protocolProfileBehavior": {
-				"disableBodyPruning": true
-			},
+			"name": "Staff",
+			"item": [
+				{
+					"name": "Get Staff Profile",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/staff/profile",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"staff",
+								"profile"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Staff Profile",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response includes updated staff profile', function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('id');",
+									"    pm.expect(jsonData).to.have.property('staff_name');",
+									"    pm.expect(jsonData).to.have.property('email');",
+									"    pm.expect(jsonData).to.have.property('role_name');",
+									"    pm.expect(jsonData).to.have.property('phone');",
+									"    pm.expect(jsonData).to.have.property('address');",
+									"    pm.expect(jsonData).to.have.property('bio');",
+									"    pm.expect(jsonData).to.have.property('profile_picture_document_id');",
+									"    pm.expect(jsonData.profilePictureDocument).to.be.oneOf([null, pm.expect.any(Object)]);",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "multipart/form-data",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "staff_name",
+									"value": "Dr. John Doe",
+									"description": "Optional: Staff full name",
+									"type": "text"
+								},
+								{
+									"key": "email",
+									"value": "john.doe@petwell.com",
+									"description": "Optional: Staff email",
+									"type": "text"
+								},
+								{
+									"key": "phone",
+									"value": "+1234567890",
+									"description": "Optional: Staff phone number",
+									"type": "text"
+								},
+								{
+									"key": "address",
+									"value": "123 Pet Street, Animal City",
+									"description": "Optional: Staff address",
+									"type": "text"
+								},
+								{
+									"key": "bio",
+									"value": "Experienced veterinarian with a passion for pet care.",
+									"description": "Optional: Staff bio",
+									"type": "text"
+								},
+								{
+									"key": "role_name",
+									"value": "Veterinarian",
+									"description": "Optional: Staff role (Veterinarian, Nurse, Receptionist, Groomer, Trainer, Nutritionist, Therapist, Behaviorist, Pet Sitter, Store Manager, Admin)",
+									"type": "text"
+								},
+								{
+									"key": "profile_picture",
+									"description": "Optional: Profile picture file (JPG, PNG)",
+									"type": "file",
+									"src": "/C:/Users/Family/Pictures/Screenshots/Screenshot 2025-06-22 135108.png"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/staff/profile",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"staff",
+								"profile"
+							]
+						},
+						"description": "Updates staff profile with optional fields and profile picture."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Teams",
+			"item": [
+				{
+					"name": "Create Team",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"pet_id\": \"{{petId}}\",\n  \"business_id\": \"{{businessId}}\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/teams/create",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"teams",
+								"create"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Teams",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/teams/getAll",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"teams",
+								"getAll"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Team by ID",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/teams/getById/{{teamId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"teams",
+								"getById",
+								"{{teamId}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Team",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PATCH",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"pet_id\": \"{{petId}}\",\n  \"business_id\": \"{{businessId}}\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/teams/update/{{teamId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"teams",
+								"update",
+								"{{teamId}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Remove Team",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/teams/delete/{{teamId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"teams",
+								"delete",
+								"{{teamId}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Search Businesses",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/teams/search/businesses?query=Pet",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"teams",
+								"search",
+								"businesses"
+							],
+							"query": [
+								{
+									"key": "query",
+									"value": "Pet"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Vaccines",
+			"item": [
+				{
+					"name": "Create Vaccine",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "vaccine_name",
+									"value": "Rabies",
+									"type": "text"
+								},
+								{
+									"key": "date_administered",
+									"value": "2025-06-22",
+									"type": "text"
+								},
+								{
+									"key": "date_due",
+									"value": "2026-06-22",
+									"type": "text"
+								},
+								{
+									"key": "staff_id",
+									"value": "{{staffId}}",
+									"type": "text"
+								},
+								{
+									"key": "pet_id",
+									"value": "{{petId}}",
+									"type": "text"
+								},
+								{
+									"key": "file",
+									"type": "file",
+									"src": "/C:/Users/Family/Pictures/Screenshots/Screenshot 2025-06-17 115233.png"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/vaccines/create",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"vaccines",
+								"create"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Pet Vaccines",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/vaccines/getAllPetVaccines/{{petId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"vaccines",
+								"getAllPetVaccines",
+								"{{petId}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Pet Vaccine Details by ID",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/vaccines/getPetVaccine/{{vaccineId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"vaccines",
+								"getPetVaccine",
+								"{{vaccineId}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Vaccine",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PATCH",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "vaccine_name",
+									"value": "Updated Rabies",
+									"type": "text"
+								},
+								{
+									"key": "date_administered",
+									"value": "2025-07-01",
+									"type": "text"
+								},
+								{
+									"key": "date_due",
+									"value": "2026-07-01",
+									"type": "text"
+								},
+								{
+									"key": "staff_id",
+									"value": "{{staffId}}",
+									"type": "text"
+								},
+								{
+									"key": "pet_id",
+									"value": "{{petId}}",
+									"type": "text"
+								},
+								{
+									"key": "file",
+									"type": "file",
+									"src": "/C:/Users/Family/Pictures/Screenshots/Screenshot 2025-06-18 161524.png"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/vaccines/update/{{vaccineId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"vaccines",
+								"update",
+								"{{vaccineId}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Vaccine",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/vaccines/delete/{{vaccineId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"vaccines",
+								"delete",
+								"{{vaccineId}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Find Doctors",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/vaccines/doctors?petId={{petId}}&businessId={{businessId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"vaccines",
+								"doctors"
+							],
+							"query": [
+								{
+									"key": "petId",
+									"value": "{{petId}}"
+								},
+								{
+									"key": "businessId",
+									"value": "{{businessId}}"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Root",
 			"request": {
-				"auth": {
-					"type": "noauth"
-				},
 				"method": "GET",
-				"header": [
-					{
-						"key": "Content-Type",
-						"value": "application/json"
-					}
-				],
-				"body": {
-					"mode": "raw",
-					"raw": "{\"email\":\"john@example.com\",\"password\":\"Password123\"}"
-				},
+				"header": [],
 				"url": {
-					"raw": "{{baseUrl}}/api/v1",
+					"raw": "{{baseUrl}}/api/v1/",
 					"host": [
 						"{{baseUrl}}"
 					],
 					"path": [
 						"api",
-						"v1"
+						"v1",
+						""
 					]
 				}
 			},
@@ -993,18 +2109,43 @@
 	"variable": [
 		{
 			"key": "baseUrl",
-			"value": "http://localhost:3000",
-			"type": "string"
+			"value": "http://localhost:5000"
 		},
 		{
-			"key": "token",
-			"value": "",
-			"type": "string"
+			"key": "jwtToken",
+			"value": ""
 		},
 		{
-			"key": "base_url",
-			"value": "",
-			"type": "default"
+			"key": "businessId",
+			"value": ""
+		},
+		{
+			"key": "staffId",
+			"value": ""
+		},
+		{
+			"key": "petId",
+			"value": ""
+		},
+		{
+			"key": "teamId",
+			"value": ""
+		},
+		{
+			"key": "vaccineId",
+			"value": ""
+		},
+		{
+			"key": "documentId",
+			"value": ""
+		},
+		{
+			"key": "breedSpeciesId",
+			"value": ""
+		},
+		{
+			"key": "breedId",
+			"value": ""
 		}
 	]
 }
