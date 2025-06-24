@@ -26,7 +26,7 @@ export class UploadDocumentDto {
   @IsOptional()
   pet_id?: string;
 
-  @IsOptional()
   @IsString()
-  
+  @IsOptional()
+  human_owner_id?: string;
 }
