@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Req } from '@nestjs/common';
+import { Controller, Post, Body, Req, UseInterceptors, UploadedFile } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterHumanOwnerDto } from './dto/register-human-owner.dto';
@@ -6,7 +6,9 @@ import { RegisterStaffDto } from './dto/register-staff.dto';
 import { RegisterBusinessDto } from './dto/register-business.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { ResendOtpDto } from './dto/resend-otp.dto';
+import { RegisterHumanOwnerWithPetDto } from './dto/register-human-owner-with-pet.dto';
 import { Request } from 'express';
+import { FileInterceptor } from '@nestjs/platform-express';
 
 @Controller('auth')
 export class AuthController {
@@ -30,6 +32,15 @@ export class AuthController {
   @Post('register/business')
   async registerBusiness(@Body() dto: RegisterBusinessDto) {
     return this.authService.registerBusiness(dto);
+  }
+
+  @Post('register/human-owner-with-pet')
+  @UseInterceptors(FileInterceptor('profile_picture'))
+  async registerHumanOwnerWithPet(
+    @Body() dto: RegisterHumanOwnerWithPetDto,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    return this.authService.registerHumanOwnerWithPet(dto, file);
   }
 
   @Post('verify-otp')

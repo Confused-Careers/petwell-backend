@@ -10,6 +10,9 @@ export class Business {
   @Column()
   business_name: string;
 
+  @Column({ nullable: true })
+  username: string;
+
   @Column({ unique: true })
   email: string;
 

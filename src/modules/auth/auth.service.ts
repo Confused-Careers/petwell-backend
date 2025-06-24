@@ -1,22 +1,31 @@
 import { Injectable, UnauthorizedException, NotFoundException, HttpException, HttpStatus } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, FindOptionsWhere, DataSource } from 'typeorm';
+import { Repository, FindOptionsWhere, DataSource, EntityManager } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { HumanOwner } from '@modules/human-owners/entities/human-owner.entity';
 import { Staff } from '@modules/staff/entities/staff.entity';
 import { Business } from '@modules/businesses/entities/business.entity';
 import { AuditLog } from '@modules/audit-logs/entities/audit-log.entity';
+import { PetProfile } from '@modules/pets/entities/pet-profile.entity';
+import { BreedSpecies } from '@modules/pets/entities/breed-species.entity';
+import { Breed } from '@modules/pets/entities/breed.entity';
 import { LoginDto } from './dto/login.dto';
 import { RegisterHumanOwnerDto } from './dto/register-human-owner.dto';
 import { RegisterStaffDto } from './dto/register-staff.dto';
 import { RegisterBusinessDto } from './dto/register-business.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { ResendOtpDto } from './dto/resend-otp.dto';
+import { RegisterHumanOwnerWithPetDto } from './dto/register-human-owner-with-pet.dto';
 import { OtpUtil } from '@shared/utils/otp.util';
 import { NodeMailerService } from '@shared/services/nodemailer.service';
+import { DocumentsService } from '@modules/documents/documents.service';
+import { AwsService } from '../../aws/aws.service';
 import { jwtConfig } from '@config/jwt.config';
 import { Status } from '@shared/enums/status.enum';
+import { DocumentType } from '@shared/enums/document-type.enum';
+import { UploadDocumentDto } from '@modules/documents/dto/upload-document.dto';
+import { Express } from 'express';
 
 @Injectable()
 export class AuthService {
@@ -29,8 +38,16 @@ export class AuthService {
     private businessRepository: Repository<Business>,
     @InjectRepository(AuditLog)
     private auditLogRepository: Repository<AuditLog>,
+    @InjectRepository(PetProfile)
+    private petProfileRepository: Repository<PetProfile>,
+    @InjectRepository(BreedSpecies)
+    private breedSpeciesRepository: Repository<BreedSpecies>,
+    @InjectRepository(Breed)
+    private breedRepository: Repository<Breed>,
     private jwtService: JwtService,
     private nodeMailerService: NodeMailerService,
+    private documentsService: DocumentsService,
+    private awsService: AwsService,
     private dataSource: DataSource,
   ) {}
 
@@ -296,6 +313,130 @@ export class AuthService {
       await queryRunner.commitTransaction();
 
       return { message: 'OTP sent to email' };
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  async registerHumanOwnerWithPet(dto: RegisterHumanOwnerWithPetDto, file: Express.Multer.File) {
+    const {
+      username,
+      human_owner_name,
+      email,
+      location,
+      phone,
+      password,
+      pet_name,
+      pet_age,
+      pet_species_id,
+      pet_breed_id,
+      pet_weight,
+      pet_spay_neuter,
+      pet_color,
+      pet_dob,
+      pet_microchip,
+      pet_notes,
+      document_name,
+      file_type,
+    } = dto;
+
+    const emailExists =
+      (await this.humanOwnerRepository.findOne({ where: { email } })) ||
+      (await this.staffRepository.findOne({ where: { email } })) ||
+      (await this.businessRepository.findOne({ where: { email } }));
+
+    if (emailExists) {
+      throw new HttpException('Email already exists', HttpStatus.BAD_REQUEST);
+    }
+
+    const usernameExists =
+      (await this.humanOwnerRepository.findOne({ where: { username } })) ||
+      (await this.staffRepository.findOne({ where: { username } }));
+
+    if (usernameExists) {
+      throw new HttpException('Username already exists', HttpStatus.BAD_REQUEST);
+    }
+
+    const species = await this.breedSpeciesRepository.findOne({ where: { id: pet_species_id, status: Status.Active } });
+    if (!species) {
+      throw new NotFoundException('Species not found');
+    }
+
+    const breed = await this.breedRepository.findOne({ where: { id: pet_breed_id, status: Status.Active } });
+    if (!breed) {
+      throw new NotFoundException('Breed not found');
+    }
+
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      // Step 1: Register Human Owner
+      const hashedPassword = await bcrypt.hash(password, 10);
+      const otpCode = OtpUtil.generateOtp();
+      const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
+      const otpSentAt = new Date();
+
+      const humanOwner = this.humanOwnerRepository.create({
+        username,
+        human_owner_name,
+        email,
+        location,
+        phone,
+        password: hashedPassword,
+        previous_passwords: JSON.stringify([hashedPassword]),
+        otp_code: otpCode,
+        otp_sent_at: otpSentAt,
+        otp_expires_at: otpExpiresAt,
+        otp_type: 'Registration',
+      });
+
+      const savedHumanOwner = await queryRunner.manager.save(humanOwner);
+
+      // Step 2: Create Pet without image
+      const pet = this.petProfileRepository.create({
+        human_owner: savedHumanOwner,
+        pet_name,
+        age: pet_age,
+        breed_species: species,
+        breed,
+        weight: pet_weight,
+        spay_neuter: pet_spay_neuter,
+        color: pet_color,
+        dob: pet_dob ? new Date(pet_dob) : null,
+        microchip: pet_microchip,
+        notes: pet_notes,
+        status: Status.Active,
+      });
+
+      const savedPet = await queryRunner.manager.save(pet);
+
+      // Step 3: Upload Document within transaction
+      const uploadDocumentDto: UploadDocumentDto = {
+        document_name,
+        document_type: DocumentType.ProfilePicture,
+        file_type,
+        description: `Profile picture for pet ${pet_name}`,
+        pet_id: savedPet.id,
+      };
+
+      const user = { id: savedHumanOwner.id, entityType: 'HumanOwner' as const };
+      const document = await this.documentsService.uploadDocument(uploadDocumentDto, file, user, savedPet.id, queryRunner.manager);
+
+      // Step 4: Update Pet with document ID
+      savedPet.profile_picture_document_id = document.id;
+      await queryRunner.manager.save(savedPet);
+
+      // Step 5: Send OTP
+      await this.nodeMailerService.sendOtpEmail(email, otpCode);
+
+      await queryRunner.commitTransaction();
+
+      return { message: 'OTP sent successfully, please verify it' };
     } catch (error) {
       await queryRunner.rollbackTransaction();
       throw error;

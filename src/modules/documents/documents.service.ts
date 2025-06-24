@@ -1,7 +1,7 @@
 // src/modules/documents/documents.service.ts
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { EntityManager, Repository } from 'typeorm';
 import { Document } from './entities/document.entity';
 import { UploadDocumentDto } from './dto/upload-document.dto';
 import { AwsService } from '../../aws/aws.service';
@@ -39,11 +39,15 @@ export class DocumentsService {
     file: Express.Multer.File,
     user: User,
     petId?: string,
+    manager?: EntityManager, 
   ) {
     const key = `${uploadDocumentDto.document_type.toLowerCase()}/${uuid.v4()}-${file.originalname}`;
     const uploadResult = await this.awsService.uploadFileToS3(key, file.originalname, file);
 
-    const document = this.documentRepository.create({
+    // Use manager if provided, else fallback to repository
+    const repo = manager ? manager.getRepository(Document) : this.documentRepository;
+
+    const document = repo.create({
       document_type: uploadDocumentDto.document_type,
       document_name: uploadDocumentDto.document_name,
       document_url: uploadResult,
@@ -53,11 +57,10 @@ export class DocumentsService {
       human_owner: user.entityType === 'HumanOwner' ? { id: user.id } : null,
       staff: user.entityType === 'Staff' ? { id: user.id } : null,
       business: user.entityType === 'Business' ? { id: user.id } : null,
-      pet: petId ? { id: petId } : null, 
-
+      pet: petId ? { id: petId } : null,
     });
 
-    return this.documentRepository.save(document);
+    return repo.save(document);
   }
 
   async getDocument(id: string) {
