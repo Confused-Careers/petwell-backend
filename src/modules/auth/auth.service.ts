@@ -478,7 +478,7 @@ export class AuthService {
     else if (user instanceof Staff) await this.staffRepository.save(user);
     else await this.businessRepository.save(user);
 
-    return { message: 'OTP verified successfully' };
+    return { success: true, message: 'OTP verified successfully' };
   }
 
   async resendOtp(dto: ResendOtpDto) {
@@ -525,7 +525,7 @@ export class AuthService {
       else await queryRunner.manager.save(user);
 
       await queryRunner.commitTransaction();
-      return { message: 'OTP resent to email' };
+      return { success: true, message: 'OTP resent to email' };
     } catch (error) {
       await queryRunner.rollbackTransaction();
       throw error;
