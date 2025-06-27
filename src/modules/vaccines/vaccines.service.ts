@@ -35,11 +35,7 @@ export class VaccinesService {
     private documentsService: DocumentsService,
   ) {}
 
-  async create(createVaccineDto: CreateVaccineDto, user: any, file: Express.Multer.File, ipAddress: string, userAgent: string) {
-    if (!file) {
-      throw new BadRequestException('A vaccine document file is required');
-    }
-
+  async create(createVaccineDto: CreateVaccineDto, user: any, file: Express.Multer.File | undefined, ipAddress: string, userAgent: string) {
     const { vaccine_name, date_administered, date_due, staff_id, pet_id } = createVaccineDto;
 
     const pet = await this.petRepository.findOne({
@@ -70,22 +66,56 @@ export class VaccinesService {
     });
     if (!team) throw new UnauthorizedException('Pet must be linked to the business via a team');
 
-    // Create the vaccine document
-    const uploadDocumentDto = {
-      document_name: `Vaccine-${vaccine_name}-${pet_id}`,
-      document_type: DocumentType.Medical,
-      file_type: file.mimetype.split('/')[1].toUpperCase() as 'PDF' | 'JPG' | 'PNG' | 'DOC' | 'JPEG',
-      description: `Vaccine document for ${vaccine_name} administered on ${date_administered}`,
-    };
+    let vaccine_document_id: string | undefined;
+    if (file) {
+      const uploadDocumentDto = {
+        document_name: `Vaccine-${vaccine_name}-${pet_id}`,
+        document_type: DocumentType.Medical,
+        file_type: file.mimetype.split('/')[1].toUpperCase() as 'PDF' | 'JPG' | 'PNG' | 'DOC' | 'JPEG',
+        description: `Vaccine document for ${vaccine_name} administered on ${date_administered}`,
+      };
 
-    const document = await this.documentsService.uploadDocument(
-      {
-        ...uploadDocumentDto,
-        pet: { id: pet_id },
-      } as any, // Cast to handle pet field
-      file,
-      user,
-    );
+      const document = await this.documentsService.uploadDocument(
+        {
+          ...uploadDocumentDto,
+          pet: { id: pet_id },
+        } as any,
+        file,
+        user,
+      );
+
+      vaccine_document_id = document.id;
+
+      await this.auditLogRepository.save(
+        this.auditLogRepository.create({
+          entity_type: 'Document',
+          entity_id: document.id,
+          action: 'Create',
+          changes: { ...uploadDocumentDto, pet_id, human_owner_id: pet.human_owner.id },
+          status: 'Success',
+          ip_address: ipAddress,
+          user_agent: userAgent,
+        }),
+      );
+    } else if (createVaccineDto.vaccine_document_id) {
+      const document = await this.documentRepository.findOne({
+        where: { id: createVaccineDto.vaccine_document_id, status: Status.Active, pet: { id: pet_id } },
+      });
+      if (!document) throw new NotFoundException('Provided vaccine document not found or not associated with the pet');
+      vaccine_document_id = document.id;
+
+      await this.auditLogRepository.save(
+        this.auditLogRepository.create({
+          entity_type: 'Document',
+          entity_id: document.id,
+          action: 'Link',
+          changes: { vaccine_id: undefined, pet_id, human_owner_id: pet.human_owner.id },
+          status: 'Success',
+          ip_address: ipAddress,
+          user_agent: userAgent,
+        }),
+      );
+    }
 
     const vaccine = this.vaccineRepository.create({
       vaccine_name,
@@ -94,31 +124,17 @@ export class VaccinesService {
       staff,
       pet,
       human_owner: pet.human_owner,
-      vaccine_document_id: document.id,
+      vaccine_document_id,
     });
 
     const savedVaccine = await this.vaccineRepository.save(vaccine);
 
-    // Log document creation
-    await this.auditLogRepository.save(
-      this.auditLogRepository.create({
-        entity_type: 'Document',
-        entity_id: document.id,
-        action: 'Create',
-        changes: { ...uploadDocumentDto, pet_id, vaccine_id: savedVaccine.id, human_owner_id: pet.human_owner.id },
-        status: 'Success',
-        ip_address: ipAddress,
-        user_agent: userAgent,
-      }),
-    );
-
-    // Log vaccine creation
     await this.auditLogRepository.save(
       this.auditLogRepository.create({
         entity_type: 'Vaccine',
         entity_id: savedVaccine.id,
         action: 'Create',
-        changes: { ...createVaccineDto, vaccine_document_id: document.id, human_owner_id: pet.human_owner.id },
+        changes: { ...createVaccineDto, vaccine_document_id, human_owner_id: pet.human_owner.id },
         status: 'Success',
         ip_address: ipAddress,
         user_agent: userAgent,
@@ -204,7 +220,6 @@ export class VaccinesService {
 
     let vaccine_document_id = vaccine.vaccine_document_id;
     if (file) {
-      // Create a new document if a file is provided
       const uploadDocumentDto = {
         document_name: `Vaccine-${updateVaccineDto.vaccine_name ?? vaccine.vaccine_name}-${vaccine.pet.id}`,
         document_type: DocumentType.Medical,
@@ -216,14 +231,13 @@ export class VaccinesService {
         {
           ...uploadDocumentDto,
           pet: { id: vaccine.pet.id },
-        } as any, // Cast to handle pet field
+        } as any,
         file,
         user,
       );
 
       vaccine_document_id = document.id;
 
-      // Log document creation
       await this.auditLogRepository.save(
         this.auditLogRepository.create({
           entity_type: 'Document',
@@ -236,19 +250,17 @@ export class VaccinesService {
         }),
       );
     } else if (updateVaccineDto.vaccine_document_id) {
-      // Validate provided vaccine_document_id
       const document = await this.documentRepository.findOne({
         where: { id: updateVaccineDto.vaccine_document_id, status: Status.Active, pet: { id: vaccine.pet.id } },
       });
       if (!document) throw new NotFoundException('Provided vaccine document not found or not associated with the pet');
       vaccine_document_id = document.id;
 
-      // Log document update (linking to vaccine)
       await this.auditLogRepository.save(
         this.auditLogRepository.create({
           entity_type: 'Document',
           entity_id: document.id,
-          action: 'Update',
+          action: 'Link',
           changes: { vaccine_id: id, pet_id: vaccine.pet.id, human_owner_id: vaccine.human_owner.id },
           status: 'Success',
           ip_address: ipAddress,
@@ -268,7 +280,6 @@ export class VaccinesService {
 
     const updatedVaccine = await this.vaccineRepository.save(vaccine);
 
-    // Log vaccine update
     await this.auditLogRepository.save(
       this.auditLogRepository.create({
         entity_type: 'Vaccine',

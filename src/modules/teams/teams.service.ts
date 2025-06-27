@@ -50,23 +50,73 @@ export class TeamsService {
   }
 
   async findAll(user: any) {
+    let query = this.teamRepository.createQueryBuilder('team')
+      .leftJoinAndSelect('team.human_owner', 'human_owner')
+      .leftJoinAndSelect('team.pet', 'pet')
+      .leftJoinAndSelect('team.business', 'business')
+      .leftJoinAndSelect('business.profilePictureDocument', 'profilePictureDocument')
+      .where('team.status = :status', { status: Status.Active });
+
     if (user.entityType === 'HumanOwner') {
-      return this.teamRepository.find({
-        where: { human_owner: { id: user.id }, status: Status.Active },
-        relations: ['human_owner', 'pet', 'business'],
-      });
+      query = query.andWhere('team.human_owner.id = :userId', { userId: user.id });
     }
-    return this.teamRepository.find({
-      where: { status: Status.Active },
-      relations: ['human_owner', 'pet', 'business'],
-    });
+
+    const teams = await query
+      .select([
+        'team.id',
+        'team.status',
+        'team.created_at',
+        'team.updated_at',
+        'human_owner.id',
+        'human_owner.email',
+        'pet.id',
+        'pet.pet_name',
+        'business.id',
+        'business.business_name',
+        'business.email',
+        'business.description',
+        'business.profile_picture_document_id',
+        'profilePictureDocument.id',
+        'profilePictureDocument.document_name',
+        'profilePictureDocument.document_url',
+        'profilePictureDocument.file_type',
+        'profilePictureDocument.description',
+      ])
+      .getMany();
+
+    return teams;
   }
 
   async findOne(id: string) {
-    const team = await this.teamRepository.findOne({
-      where: { id, status: Status.Active },
-      relations: ['human_owner', 'pet', 'business'],
-    });
+    const team = await this.teamRepository.createQueryBuilder('team')
+      .leftJoinAndSelect('team.human_owner', 'human_owner')
+      .leftJoinAndSelect('team.pet', 'pet')
+      .leftJoinAndSelect('team.business', 'business')
+      .leftJoinAndSelect('business.profilePictureDocument', 'profilePictureDocument')
+      .where('team.id = :id', { id })
+      .andWhere('team.status = :status', { status: Status.Active })
+      .select([
+        'team.id',
+        'team.status',
+        'team.created_at',
+        'team.updated_at',
+        'human_owner.id',
+        'human_owner.email',
+        'pet.id',
+        'pet.pet_name',
+        'business.id',
+        'business.business_name',
+        'business.email',
+        'business.description',
+        'business.profile_picture_document_id',
+        'profilePictureDocument.id',
+        'profilePictureDocument.document_name',
+        'profilePictureDocument.document_url',
+        'profilePictureDocument.file_type',
+        'profilePictureDocument.description',
+      ])
+      .getOne();
+
     if (!team) throw new NotFoundException('Team not found');
     return team;
   }

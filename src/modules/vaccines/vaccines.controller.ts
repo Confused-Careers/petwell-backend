@@ -16,7 +16,7 @@ export class VaccinesController {
   @UseInterceptors(FileInterceptor('file'))
   async create(
     @Body() createVaccineDto: CreateVaccineDto,
-    @UploadedFile() file: Express.Multer.File,
+    @UploadedFile() file: Express.Multer.File | undefined,
     @Req() req: Request,
   ) {
     return this.vaccinesService.create(createVaccineDto, req.user, file, req.ip, req.get('user-agent'));

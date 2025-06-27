@@ -377,4 +377,47 @@ export class PetsService {
 
     return updatedDocument;
   }
+
+  async updatePetDocumentName(id: string, documentName: string, user: any, ipAddress: string, userAgent: string) {
+    if (user.entityType !== 'HumanOwner') {
+      throw new UnauthorizedException('Only HumanOwner entities can update pet documents');
+    }
+
+    const document = await this.documentRepository.findOne({
+      where: { id, status: Status.Active },
+      relations: ['pet', 'human_owner', 'pet.human_owner'],
+    });
+    if (!document) {
+      throw new NotFoundException('Document not found');
+    }
+
+    if (!document.pet) {
+      throw new BadRequestException('Document is not associated with a pet');
+    }
+
+    if (document.pet.human_owner.id !== user.id) {
+      throw new UnauthorizedException('Unauthorized to update this document');
+    }
+
+    if (!documentName || documentName.trim().length === 0) {
+      throw new BadRequestException('Document name cannot be empty');
+    }
+
+    document.document_name = documentName.trim();
+    const updatedDocument = await this.documentRepository.save(document);
+
+    await this.auditLogRepository.save(
+      this.auditLogRepository.create({
+        entity_type: 'Document',
+        entity_id: id,
+        action: 'Update',
+        changes: { document_name: documentName, pet_id: document.pet.id, human_owner_id: user.id },
+        status: 'Success',
+        ip_address: ipAddress,
+        user_agent: userAgent,
+      }),
+    );
+
+    return updatedDocument;
+  }
 }

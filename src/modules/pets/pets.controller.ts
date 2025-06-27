@@ -80,4 +80,13 @@ export class PetsController {
   ) {
     return this.petsService.updatePetDocument(id, uploadDocumentDto, file, req.user, req.ip, req.get('user-agent'));
   }
+
+  @Patch('documents/name/:id')
+  async updatePetDocumentName(
+    @Param('id') id: string,
+    @Body('document_name') documentName: string,
+    @Req() req,
+  ) {
+    return this.petsService.updatePetDocumentName(id, documentName, req.user, req.ip, req.get('user-agent'));
+  }
 }
