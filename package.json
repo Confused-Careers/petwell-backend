@@ -23,6 +23,7 @@
     "migration:run": "typeorm-ts-node-commonjs migration:run -d src/config/database.config.ts"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.2",
     "@nestjs/core": "^11.0.1",

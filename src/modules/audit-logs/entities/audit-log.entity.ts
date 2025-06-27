@@ -11,7 +11,7 @@ export class AuditLog {
   @Column('uuid')
   entity_id: string;
 
-  @Column({ type: 'enum', enum: ['Create', 'Update', 'Delete', 'Login', 'Logout'] })
+  @Column({ type: 'enum', enum: ['Create', 'Update', 'Delete', 'Login', 'Logout', 'Parse'] })
   action: string;
 
   @Column({ type: 'jsonb', nullable: true })

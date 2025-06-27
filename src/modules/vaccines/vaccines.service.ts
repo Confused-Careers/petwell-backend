@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, UnauthorizedException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, Like } from 'typeorm';
 import { Vaccine } from './entities/vaccine.entity';
 import { PetProfile } from '../pets/entities/pet-profile.entity';
 import { Staff } from '../staff/entities/staff.entity';
@@ -14,6 +14,7 @@ import { UpdateVaccineDto } from './dto/update-vaccine.dto';
 import { Status } from '../../shared/enums/status.enum';
 import { DocumentType } from '../../shared/enums/document-type.enum';
 import { Express } from 'express';
+import { geminiModel } from '../../config/gemini.config';
 
 @Injectable()
 export class VaccinesService {
@@ -142,6 +143,112 @@ export class VaccinesService {
     );
 
     return savedVaccine;
+  }
+
+  async parseVaccineDocument(petId: string, file: Express.Multer.File, user: any, ipAddress: string, userAgent: string) {
+    if (!petId) throw new BadRequestException('Pet ID is required');
+    if (!file) throw new BadRequestException('File is required');
+
+    const pet = await this.petRepository.findOne({
+      where: { id: petId, status: Status.Active },
+      relations: ['human_owner', 'breed_species'],
+    });
+    if (!pet) throw new NotFoundException('Pet not found');
+    if (pet.breed_species.species_name !== 'Dog' && pet.breed_species.species_name !== 'Cat') throw new UnauthorizedException('Documents can only be parsed for dogs or cats');
+
+    if (user.entityType === 'HumanOwner' && pet.human_owner.id !== user.id) {
+      throw new UnauthorizedException('Human owners can only parse documents for their own pets');
+    }
+
+    const allowedFileTypes = ['pdf', 'jpg', 'jpeg', 'png'];
+    const fileType = file.mimetype.split('/')[1].toLowerCase();
+    if (!allowedFileTypes.includes(fileType)) {
+      throw new BadRequestException('Unsupported file type. Only PDF, JPG, JPEG, and PNG are allowed');
+    }
+
+    const fileData = {
+      inlineData: {
+        data: file.buffer.toString('base64'),
+        mimeType: file.mimetype,
+      },
+    };
+
+    const prompt = `Extract the following details from the provided vaccine document (image or PDF) if multiple vaccine provide only one at top only:
+    - Vaccine name
+    - Date administered (format: YYYY-MM-DD)
+    - Expiry date (format: YYYY-MM-DD)
+    - Administered by (doctor's name)
+    Return the response in JSON format, without markdown code fences. If a field cannot be extracted, return null for that field. Example:
+    {"vaccine_name":"Rabies","date_administered":"2023-01-15","expiry_date":"2024-01-15","administered_by":"Dr. John Doe"}`;
+    
+    const result = await geminiModel.generateContent([prompt, fileData]);
+    const responseText = result.response.text();
+    let extractedData;
+
+    try {
+      extractedData = JSON.parse(responseText.replace(/```json\n|```/g, '').trim());
+    } catch (error) {
+      throw new BadRequestException('Failed to parse vaccine document data');
+    }
+
+    let staff_id: string | null = null;
+    if (extractedData.administered_by) {
+      const staff = await this.staffRepository.findOne({
+        where: {
+          staff_name: Like(`%${extractedData.administered_by}%`),
+          role_name: 'Veterinarian',
+          status: Status.Active,
+        },
+        relations: ['business'],
+      });
+
+      if (staff) {
+        const team = await this.teamRepository.findOne({
+          where: { pet: { id: petId }, business: { id: staff.business.id }, status: Status.Active },
+        });
+
+        if (team) {
+          staff_id = staff.id;
+        }
+      }
+    }
+
+    const uploadDocumentDto = {
+      document_name: `Vaccine-Document-${petId}-${Date.now()}`,
+      document_type: DocumentType.Medical,
+      file_type: fileType.toUpperCase() as 'PDF' | 'JPG' | 'PNG',
+      description: `Parsed vaccine document for pet ${petId}`,
+    };
+
+    const document = await this.documentsService.uploadDocument(
+      {
+        ...uploadDocumentDto,
+        pet: { id: petId },
+      } as any,
+      file,
+      user,
+    );
+
+    await this.auditLogRepository.save(
+      this.auditLogRepository.create({
+        entity_type: 'Document',
+        entity_id: document.id,
+        action: 'Parse',
+        changes: { ...uploadDocumentDto, pet_id: petId, extracted_data: extractedData, staff_id, human_owner_id: pet.human_owner.id },
+        status: 'Success',
+        ip_address: ipAddress,
+        user_agent: userAgent,
+      }),
+    );
+
+    return {
+      document_id: document.id,
+      vaccine_name: extractedData.vaccine_name || null,
+      date_administered: extractedData.date_administered || null,
+      expiry_date: extractedData.expiry_date || null,
+      administered_by: extractedData.administered_by || null,
+      staff_id,
+    };
   }
 
   async findAll(petId?: string) {

@@ -22,6 +22,16 @@ export class VaccinesController {
     return this.vaccinesService.create(createVaccineDto, req.user, file, req.ip, req.get('user-agent'));
   }
 
+  @Post('getVaccinesDetails')
+  @UseInterceptors(FileInterceptor('file'))
+  async parseDocument(
+    @Body('petId') petId: string,
+    @UploadedFile() file: Express.Multer.File,
+    @Req() req: Request,
+  ) {
+    return this.vaccinesService.parseVaccineDocument(petId, file, req.user, req.ip, req.get('user-agent'));
+  }
+
   @Get('getAllPetVaccines/:id')
   async findAll(@Param('petId') petId?: string) {
     return this.vaccinesService.findAll(petId);
