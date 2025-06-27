@@ -420,4 +420,43 @@ export class PetsService {
 
     return updatedDocument;
   }
+
+  async deletePetDocument(id: string, user: any, ipAddress: string, userAgent: string) {
+    if (user.entityType !== 'HumanOwner') {
+      throw new UnauthorizedException('Only HumanOwner entities can delete pet documents');
+    }
+
+    const document = await this.documentRepository.findOne({
+      where: { id, status: Status.Active },
+      relations: ['pet', 'human_owner', 'pet.human_owner'],
+    });
+
+    if (!document) {
+      throw new NotFoundException('Document not found');
+    }
+
+    if (!document.pet) {
+      throw new BadRequestException('Document is not associated with a pet');
+    }
+
+    if (document.pet.human_owner.id !== user.id) {
+      throw new UnauthorizedException('Unauthorized to delete this document');
+    }
+
+    await this.documentRepository.remove(document);
+
+    await this.auditLogRepository.save(
+      this.auditLogRepository.create({
+        entity_type: 'Document',
+        entity_id: id,
+        action: 'Delete',
+        changes: { pet_id: document.pet.id, human_owner_id: user.id },
+        status: 'Success',
+        ip_address: ipAddress,
+        user_agent: userAgent,
+      }),
+    );
+
+    return { message: 'Document deleted successfully' };
+  }
 }

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Param, Body, UseGuards, UseInterceptors, UploadedFile, Req } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Param, Body, UseGuards, UseInterceptors, UploadedFile, Req, Delete } from '@nestjs/common';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PetsService } from './pets.service';
 import { CreatePetDto } from './dto/create-pet.dto';
@@ -88,5 +88,10 @@ export class PetsController {
     @Req() req,
   ) {
     return this.petsService.updatePetDocumentName(id, documentName, req.user, req.ip, req.get('user-agent'));
+  }
+
+  @Delete('documents/:id')
+  async deletePetDocument(@Param('id') id: string, @Req() req) {
+    return this.petsService.deletePetDocument(id, req.user, req.ip, req.get('user-agent'));
   }
 }
