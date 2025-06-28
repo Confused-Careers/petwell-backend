@@ -23,6 +23,15 @@ export class Business {
   phone: string;
 
   @Column({ nullable: true })
+  address: string;
+
+  @Column({ nullable: true })
+  latitude: string;
+
+  @Column({ nullable: true })
+  longitude: string;
+
+  @Column({ nullable: true })
   website: string;
 
   @Column({ type: 'jsonb', nullable: true })

@@ -16,6 +16,10 @@ export class UpdateBusinessDto {
 
   @IsOptional()
   @IsString()
+  address?: string;
+
+  @IsOptional()
+  @IsString()
   website?: string;
 
   @IsOptional()

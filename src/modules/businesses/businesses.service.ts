@@ -75,6 +75,8 @@ export class BusinessesService {
       website: updateBusinessDto.website || business.website,
       socials: updateBusinessDto.socials || business.socials,
       description: updateBusinessDto.description || business.description,
+      address: updateBusinessDto.address || business.address,
+      
     });
 
     try {

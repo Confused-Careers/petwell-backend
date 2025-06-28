@@ -21,6 +21,10 @@ export class RegisterBusinessDto {
   @IsOptional()
   website: string;
 
+  @IsOptional()
+  @IsString()
+  address: string;
+
   @IsUrl()
   @IsOptional()
   instagram: string;
