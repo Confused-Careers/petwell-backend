@@ -74,8 +74,8 @@ export class UserPetService {
       otherBreed = await this.breedRepository.save(otherBreed);
     }
 
-    // Extract pet information from documents
-    const petInfo = await this.analyzeDocumentsForPetInfo(files);
+    // Extract pet and vaccine information from documents
+    const { petInfo, vaccineDataList } = await this.analyzeDocumentsForPetInfo(files);
     const { pet_name, species, breed, age, weight, dob, color, microchip, spay_neuter } = petInfo;
 
     // Map species and breed
@@ -125,7 +125,8 @@ export class UserPetService {
     const results = [];
     const allowedFileTypes = ['pdf', 'jpg', 'jpeg', 'png'];
 
-    for (const file of files) {
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
       const fileType = file.mimetype.split('/')[1].toLowerCase();
       if (!allowedFileTypes.includes(fileType)) {
         throw new BadRequestException('Unsupported file type. Only PDF, JPG, JPEG, and PNG are allowed');
@@ -133,8 +134,9 @@ export class UserPetService {
 
       const fileNameWithoutExt = path.parse(file.originalname).name;
 
-      // Identify and extract vaccine data
-      const { isVaccine, vaccineData } = await this.identifyVaccineDocument(file, fileType);
+      // Get vaccine data for this file (if any)
+      const vaccineDataEntry = vaccineDataList[i] || { isVaccine: false, vaccines: [] };
+      const isVaccine = vaccineDataEntry.isVaccine;
 
       // Upload document
       const document = await this.documentsService.uploadDocument(
@@ -162,23 +164,28 @@ export class UserPetService {
         }),
       );
 
-      // Create vaccine if applicable
-      if (isVaccine && vaccineData && 
-          vaccineData.vaccine_name && 
-          vaccineData.date_administered && 
-          vaccineData.expiry_date && 
-          vaccineData.administered_by) {
-        const createVaccineDto = {
-          vaccine_name: vaccineData.vaccine_name,
-          date_administered: vaccineData.date_administered,
-          date_due: vaccineData.expiry_date,
-          administered_by: vaccineData.administered_by,
-          pet_id: savedPet.id,
-          vaccine_document_id: document.id,
-        };
+      // Create vaccines if applicable
+      if (isVaccine && vaccineDataEntry.vaccines && vaccineDataEntry.vaccines.length > 0) {
+        for (const vaccineData of vaccineDataEntry.vaccines) {
+          if (
+            vaccineData.vaccine_name &&
+            vaccineData.date_administered &&
+            vaccineData.expiry_date &&
+            vaccineData.administered_by
+          ) {
+            const createVaccineDto = {
+              vaccine_name: vaccineData.vaccine_name,
+              date_administered: vaccineData.date_administered,
+              date_due: vaccineData.expiry_date,
+              administered_by: vaccineData.administered_by,
+              pet_id: savedPet.id,
+              vaccine_document_id: document.id,
+            };
 
-        const vaccine = await this.vaccinesService.create(createVaccineDto, user, undefined, ipAddress, userAgent);
-        results.push({ type: 'vaccine', id: vaccine.id, document_id: document.id });
+            const vaccine = await this.vaccinesService.create(createVaccineDto, user, undefined, ipAddress, userAgent);
+            results.push({ type: 'vaccine', id: vaccine.id, document_id: document.id });
+          }
+        }
       } else {
         results.push({ type: 'document', id: document.id });
       }
@@ -205,38 +212,74 @@ export class UserPetService {
   }
 
   private async analyzeDocumentsForPetInfo(files: Express.Multer.File[]): Promise<{
-    pet_name: string | null;
-    species: string | null;
-    breed: string | null;
-    age: number | null;
-    weight: number | null;
-    dob: string | null;
-    color: string | null;
-    microchip: string | null;
-    spay_neuter: boolean | null;
+    petInfo: {
+      pet_name: string | null;
+      species: string | null;
+      breed: string | null;
+      age: number | null;
+      weight: number | null;
+      dob: string | null;
+      color: string | null;
+      microchip: string | null;
+      spay_neuter: boolean | null;
+    };
+    vaccineDataList: Array<{
+      isVaccine: boolean;
+      vaccines: Array<{
+        vaccine_name: string | null;
+        date_administered: string | null;
+        expiry_date: string | null;
+        administered_by: string | null;
+      }>;
+    }>;
   }> {
-    const prompt = `Extract the following pet information from the provided document(s):
-    - Pet name
-    - Species
-    - Breed
-    - Age (in years, integer)
-    - Weight (in pounds, integer)
-    - Date of birth (format: YYYY-MM-DD)
-    - Color
-    - Microchip number
-    - Spay/Neuter status (boolean)
-    Return a JSON object with the extracted fields, setting any unavailable fields to null.
+    const prompt = `For each provided document, perform the following:
+    1. Extract pet information:
+       - Pet name
+       - Species
+       - Breed
+       - Age (in years, integer)
+       - Weight (in pounds, integer)
+       - Date of birth (format: YYYY-MM-DD)
+       - Color
+       - Microchip number
+       - Spay/Neuter status (boolean)
+    2. Determine if the document is a vaccine record (contains vaccine name, date administered, expiry date, or administered by a veterinarian). If it is, extract details for ALL vaccines listed:
+       - Vaccine name
+       - Date administered (format: YYYY-MM-DD)
+       - Expiry date (format: YYYY-MM-DD)
+       - Administered by (doctor's name)
+    Return a JSON object with:
+    - petInfo: object with the extracted pet fields (combine information from all documents, prioritizing non-null values from the first document where each field is found)
+    - vaccineDataList: array of objects, one per document, each containing:
+      - isVaccine: boolean
+      - vaccines: array of objects with vaccine fields (empty array if not a vaccine record)
     Example:
     {
-      "pet_name": "Max",
-      "species": "Dog",
-      "breed": "Labrador Retriever",
-      "age": 3,
-      "weight": 70,
-      "dob": "2022-05-10",
-      "color": "Yellow",
-      "microchip": "123456789",
-      "spay_neuter": true
+      "petInfo": {
+        "pet_name": "Max",
+        "species": "Dog",
+        "breed": "Labrador Retriever",
+        "age": 3,
+        "weight": 70,
+        "dob": "2022-05-10",
+        "color": "Yellow",
+        "microchip": "123456789",
+        "spay_neuter": true
+      },
+      "vaccineDataList": [
+        {
+          "isVaccine": true,
+          "vaccines": [
+            {"vaccine_name":"Rabies","date_administered":"2023-01-15","expiry_date":"2024-01-15","administered_by":"Dr. John Doe"},
+            {"vaccine_name":"Distemper","date_administered":"2023-01-15","expiry_date":"2024-01-15","administered_by":"Dr. John Doe"}
+          ]
+        },
+        {
+          "isVaccine": false,
+          "vaccines": []
+        }
+      ]
     }`;
 
     let combinedText = '';
@@ -294,15 +337,18 @@ export class UserPetService {
       if (messages[0].content.length === 1 && !combinedText) {
         console.warn('No valid content to process (no text or images)');
         return {
-          pet_name: null,
-          species: null,
-          breed: null,
-          age: null,
-          weight: null,
-          dob: null,
-          color: null,
-          microchip: null,
-          spay_neuter: null,
+          petInfo: {
+            pet_name: null,
+            species: null,
+            breed: null,
+            age: null,
+            weight: null,
+            dob: null,
+            color: null,
+            microchip: null,
+            spay_neuter: null,
+          },
+          vaccineDataList: files.map(() => ({ isVaccine: false, vaccines: [] })),
         };
       }
 
@@ -312,90 +358,47 @@ export class UserPetService {
       });
 
       const responseText = result.choices[0].message.content;
-      return JSON.parse(responseText.replace(/```json\n|```/g, '').trim());
-    } catch (error) {
-      console.error('Error extracting pet info:', error);
-      return {
-        pet_name: null,
-        species: null,
-        breed: null,
-        age: null,
-        weight: null,
-        dob: null,
-        color: null,
-        microchip: null,
-        spay_neuter: null,
-      };
-    }
-  }
+      const response = JSON.parse(responseText.replace(/```json\n|```/g, '').trim());
 
-  private async identifyVaccineDocument(file: Express.Multer.File, fileType: string): Promise<{
-    isVaccine: boolean;
-    vaccineData: { vaccine_name: string | null; date_administered: string | null; expiry_date: string | null; administered_by: string | null } | null;
-  }> {
-    const prompt = `Determine if the provided document is a vaccine record. A vaccine record typically contains information such as vaccine name, date administered, expiry date, or administered by a veterinarian. If it is a vaccine record, extract the following details for the first vaccine listed:
-    - Vaccine name
-    - Date administered (format: YYYY-MM-DD)
-    - Expiry date (format: YYYY-MM-DD)
-    - Administered by (doctor's name)
-    Return a JSON object with:
-    - isVaccine: boolean
-    - vaccineData: object with the extracted fields (or null if not a vaccine record)
-    Example: 
-    {
-      "isVaccine": true,
-      "vaccineData": {"vaccine_name":"Rabies","date_administered":"2023-01-15","expiry_date":"2024-01-15","administered_by":"Dr. John Doe"}
-    }
-    or
-    {
-      "isVaccine": false,
-      "vaccineData": null
-    }`;
-
-    try {
-      if (fileType === 'pdf') {
-        const pdfData = await pdfParse(file.buffer);
-        const pdfText = pdfData.text;
-
-        const result = await openaiClient.chat.completions.create({
-          model: openaiModel,
-          messages: [
-            {
-              role: 'user',
-              content: [
-                { type: 'text', text: `${prompt}\n\nDocument text:\n${pdfText}` },
-              ],
-            },
-          ],
-        });
-
-        const responseText = result.choices[0].message.content;
-        return JSON.parse(responseText.replace(/```json\n|```/g, '').trim());
-      } else {
-        const result = await openaiClient.chat.completions.create({
-          model: openaiModel,
-          messages: [
-            {
-              role: 'user',
-              content: [
-                { type: 'text', text: prompt },
-                {
-                  type: 'image_url',
-                  image_url: {
-                    url: `data:${file.mimetype};base64,${file.buffer.toString('base64')}`,
-                  },
-                },
-              ],
-            },
-          ],
-        });
-
-        const responseText = result.choices[0].message.content;
-        return JSON.parse(responseText.replace(/```json\n|```/g, '').trim());
+      // Ensure vaccineDataList length matches the number of files
+      const vaccineDataList = response.vaccineDataList || files.map(() => ({ isVaccine: false, vaccines: [] }));
+      if (vaccineDataList.length !== files.length) {
+        console.warn('Mismatch in vaccineDataList length, padding with defaults');
+        while (vaccineDataList.length < files.length) {
+          vaccineDataList.push({ isVaccine: false, vaccines: [] });
+        }
       }
+
+      return {
+        petInfo: response.petInfo || {
+          pet_name: null,
+          species: null,
+          breed: null,
+          age: null,
+          weight: null,
+          dob: null,
+          color: null,
+          microchip: null,
+          spay_neuter: null,
+        },
+        vaccineDataList,
+      };
     } catch (error) {
-      console.error('Error processing document:', error);
-      return { isVaccine: false, vaccineData: null };
+      console.error('Error extracting pet and vaccine info:', error);
+      return {
+        petInfo: {
+          pet_name: null,
+          species: null,
+          breed: null,
+          age: null,
+          weight: null,
+          dob: null,
+          color: null,
+          microchip: null,
+          spay_neuter: null,
+        },
+        vaccineDataList: files.map(() => ({ isVaccine: false, vaccines: [] })),
+      };
     }
   }
 }

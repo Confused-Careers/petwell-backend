@@ -256,10 +256,8 @@ export class PetsService {
       const fileType = file.mimetype.split('/')[1].toLowerCase();
       const fileNameWithoutExt = path.parse(file.originalname).name;
 
-      // Classify and extract data in one call
-      const { isVaccine, vaccineData } = await this.classifyAndExtractDocument(file, fileType);
+      const { isVaccine, vaccines } = await this.classifyAndExtractDocument(file, fileType);
 
-      // Upload the document
       const document = await this.documentsService.uploadDocument(
         {
           ...uploadDocumentDto,
@@ -286,23 +284,27 @@ export class PetsService {
         }),
       );
 
-      // Only create a vaccine if isVaccine is true and all required fields are non-null
-      if (isVaccine && vaccineData && 
-          vaccineData.vaccine_name && 
-          vaccineData.date_administered && 
-          vaccineData.expiry_date && 
-          vaccineData.administered_by) {
-        const createVaccineDto = {
-          vaccine_name: vaccineData.vaccine_name,
-          date_administered: vaccineData.date_administered,
-          date_due: vaccineData.expiry_date,
-          administered_by: vaccineData.administered_by,
-          pet_id: petId,
-          vaccine_document_id: document.id,
-        };
+      if (isVaccine && vaccines && vaccines.length > 0) {
+        for (const vaccineData of vaccines) {
+          if (
+            vaccineData.vaccine_name &&
+            vaccineData.date_administered &&
+            vaccineData.expiry_date &&
+            vaccineData.administered_by
+          ) {
+            const createVaccineDto = {
+              vaccine_name: vaccineData.vaccine_name,
+              date_administered: vaccineData.date_administered,
+              date_due: vaccineData.expiry_date,
+              administered_by: vaccineData.administered_by,
+              pet_id: petId,
+              vaccine_document_id: document.id,
+            };
 
-        const vaccine = await this.vaccinesService.create(createVaccineDto, user, undefined, ipAddress, userAgent);
-        results.push({ type: 'vaccine', id: vaccine.id, document_id: document.id });
+            const vaccine = await this.vaccinesService.create(createVaccineDto, user, undefined, ipAddress, userAgent);
+            results.push({ type: 'vaccine', id: vaccine.id, document_id: document.id });
+          }
+        }
       } else {
         results.push({ type: 'document', id: document.id });
       }
@@ -335,8 +337,7 @@ export class PetsService {
 
     const fileNameWithoutExt = path.parse(file.originalname).name;
 
-    // Classify and extract data in one call
-    const { isVaccine, vaccineData } = await this.classifyAndExtractDocument(file, fileType);
+    const { isVaccine, vaccines } = await this.classifyAndExtractDocument(file, fileType);
 
     const document = await this.documentsService.uploadDocument(
       {
@@ -364,49 +365,66 @@ export class PetsService {
       }),
     );
 
-    // Only create a vaccine if isVaccine is true and all required fields are non-null
-    if (isVaccine && vaccineData && 
-        vaccineData.vaccine_name && 
-        vaccineData.date_administered && 
-        vaccineData.expiry_date && 
-        vaccineData.administered_by) {
-      const createVaccineDto = {
-        vaccine_name: vaccineData.vaccine_name,
-        date_administered: vaccineData.date_administered,
-        date_due: vaccineData.expiry_date,
-        administered_by: vaccineData.administered_by,
-        pet_id: petId,
-        vaccine_document_id: document.id,
-      };
+    const results = [];
+    if (isVaccine && vaccines && vaccines.length > 0) {
+      for (const vaccineData of vaccines) {
+        if (
+          vaccineData.vaccine_name &&
+          vaccineData.date_administered &&
+          vaccineData.expiry_date &&
+          vaccineData.administered_by
+        ) {
+          const createVaccineDto = {
+            vaccine_name: vaccineData.vaccine_name,
+            date_administered: vaccineData.date_administered,
+            date_due: vaccineData.expiry_date,
+            administered_by: vaccineData.administered_by,
+            pet_id: petId,
+            vaccine_document_id: document.id,
+          };
 
-      const vaccine = await this.vaccinesService.create(createVaccineDto, user, undefined, ipAddress, userAgent);
-      return { type: 'vaccine', id: vaccine.id, document_id: document.id };
+          const vaccine = await this.vaccinesService.create(createVaccineDto, user, undefined, ipAddress, userAgent);
+          results.push({ type: 'vaccine', id: vaccine.id, document_id: document.id });
+        }
+      }
     }
 
-    return { type: 'document', id: document.id };
+    if (results.length === 0) {
+      results.push({ type: 'document', id: document.id });
+    }
+
+    return results.length === 1 ? results[0] : { type: 'multiple', results };
   }
 
   private async classifyAndExtractDocument(file: Express.Multer.File, fileType: string): Promise<{
     isVaccine: boolean;
-    vaccineData: { vaccine_name: string | null; date_administered: string | null; expiry_date: string | null; administered_by: string | null } | null;
+    vaccines: Array<{
+      vaccine_name: string | null;
+      date_administered: string | null;
+      expiry_date: string | null;
+      administered_by: string | null;
+    }>;
   }> {
-    const prompt = `Determine if the provided document is a vaccine record. A vaccine record typically contains information such as vaccine name, date administered, expiry date, or administered by a veterinarian. If it is a vaccine record, extract the following details for the first vaccine listed:
+    const prompt = `Determine if the provided document is a vaccine record. A vaccine record typically contains information such as vaccine name, date administered, expiry date, or administered by a veterinarian. If it is a vaccine record, extract details for ALL vaccines listed:
     - Vaccine name
     - Date administered (format: YYYY-MM-DD)
     - Expiry date (format: YYYY-MM-DD)
     - Administered by (doctor's name)
     Return a JSON object with:
     - isVaccine: boolean
-    - vaccineData: object with the extracted fields (or null if not a vaccine record)
+    - vaccines: array of objects with the extracted fields (empty array if not a vaccine record)
     Example: 
     {
       "isVaccine": true,
-      "vaccineData": {"vaccine_name":"Rabies","date_administered":"2023-01-15","expiry_date":"2024-01-15","administered_by":"Dr. John Doe"}
+      "vaccines": [
+        {"vaccine_name":"Rabies","date_administered":"2023-01-15","expiry_date":"2024-01-15","administered_by":"Dr. John Doe"},
+        {"vaccine_name":"Distemper","date_administered":"2023-01-15","expiry_date":"2024-01-15","administered_by":"Dr. John Doe"}
+      ]
     }
     or
     {
       "isVaccine": false,
-      "vaccineData": null
+      "vaccines": []
     }`;
 
     try {
@@ -452,7 +470,7 @@ export class PetsService {
       }
     } catch (error) {
       console.error('Error processing document:', error);
-      return { isVaccine: false, vaccineData: null }; // Default to regular document if processing fails
+      return { isVaccine: false, vaccines: [] };
     }
   }
 
