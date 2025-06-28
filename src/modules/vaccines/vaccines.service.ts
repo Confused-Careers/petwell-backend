@@ -36,7 +36,6 @@ export class VaccinesService {
       relations: ['human_owner', 'breed_species'],
     });
     if (!pet) throw new NotFoundException('Pet not found');
-    if (pet.breed_species.species_name !== 'Dog' && pet.breed_species.species_name !== 'Cat') throw new UnauthorizedException('Vaccines are only for dogs or cats');
 
     if (user.entityType === 'HumanOwner' && pet.human_owner.id !== user.id) {
       throw new UnauthorizedException('Human owners can only create vaccines for their own pets');

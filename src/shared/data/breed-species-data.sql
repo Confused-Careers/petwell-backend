@@ -5,7 +5,8 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 INSERT INTO breed_species (id, species_name, status, species_description, created_at, updated_at)
 VALUES
   ('550e8400-e29b-41d4-a716-446655440001', 'Dog', 'Active', 'Canine species', NOW(), NOW()),
-  ('550e8400-e29b-41d4-a716-446655440002', 'Cat', 'Active', 'Feline species', NOW(), NOW())
+  ('550e8400-e29b-41d4-a716-446655440002', 'Cat', 'Active', 'Feline species', NOW(), NOW()),
+  ('550e8400-e29b-41d4-a716-446655440003', 'Other', 'Active', 'Other', NOW(), NOW()),
 ON CONFLICT (id) DO NOTHING;
 
 -- Insert breeds data for Dog (idempotent: skip if breed_name and breedSpeciesId exist)
@@ -58,7 +59,8 @@ VALUES
   (uuid_generate_v4(), 'Perro de Presa Canario', '550e8400-e29b-41d4-a716-446655440001', 'Active', 'Strong and protective', NOW(), NOW()),
   (uuid_generate_v4(), 'Thai Ridgeback', '550e8400-e29b-41d4-a716-446655440001', 'Active', 'Loyal and independent', NOW(), NOW()),
   (uuid_generate_v4(), 'Carolina Dog', '550e8400-e29b-41d4-a716-446655440001', 'Active', 'Resilient and intelligent', NOW(), NOW()),
-  (uuid_generate_v4(), 'Boerboel', '550e8400-e29b-41d4-a716-446655440001', 'Active', 'Protective and confident', NOW(), NOW());
+  (uuid_generate_v4(), 'Boerboel', '550e8400-e29b-41d4-a716-446655440001', 'Active', 'Protective and confident', NOW(), NOW()),
+  (uuid_generate_v4(), 'Other', '550e8400-e29b-41d4-a716-446655440001', 'Active', 'Friendly and short-tailed', NOW(), NOW());
 
 -- Insert breeds data for Cat (idempotent: skip if breed_name and breedSpeciesId exist)
 INSERT INTO breeds (id, breed_name, "breedSpeciesId", status, breed_description, created_at, updated_at)
@@ -103,4 +105,5 @@ VALUES
   (uuid_generate_v4(), 'Munchkin', '550e8400-e29b-41d4-a716-446655440002', 'Active', 'Short-legged and playful', NOW(), NOW()),
   (uuid_generate_v4(), 'Pixie-Bob', '550e8400-e29b-41d4-a716-446655440002', 'Active', 'Wild-looking and loyal', NOW(), NOW()),
   (uuid_generate_v4(), 'Siberian', '550e8400-e29b-41d4-a716-446655440002', 'Active', 'Affectionate and sturdy', NOW(), NOW()),
-  (uuid_generate_v4(), 'Kurilian Bobtail', '550e8400-e29b-41d4-a716-446655440002', 'Active', 'Friendly and short-tailed', NOW(), NOW());
+  (uuid_generate_v4(), 'Kurilian Bobtail', '550e8400-e29b-41d4-a716-446655440002', 'Active', 'Friendly and short-tailed', NOW(), NOW()),
+  (uuid_generate_v4(), 'Other', '550e8400-e29b-41d4-a716-446655440002', 'Active', 'Friendly and short-tailed', NOW(), NOW());

@@ -17,6 +17,7 @@ import { TeamsModule } from '@modules/teams/teams.module';
 import { AuditLogsModule } from '@modules/audit-logs/audit-logs.module';
 import { dataSourceOptions } from '@config/database.config';
 import { LicensesModule } from './modules/licenses/licenses.module';
+import { UserPetModule } from './modules/user-pet/user-pet.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { LicensesModule } from './modules/licenses/licenses.module';
     TeamsModule,
     AuditLogsModule,
     LicensesModule,
+    UserPetModule,
   ],
   controllers: [AppController],
   providers: [AppService],
