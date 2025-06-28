@@ -15,7 +15,7 @@ export class UpdateVaccineDto {
 
   @IsOptional()
   @IsString()
-  staff_id?: string;
+  administered_by?: string;
 
   @IsOptional()
   @IsString()

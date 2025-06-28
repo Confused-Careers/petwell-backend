@@ -15,7 +15,7 @@ export class CreateVaccineDto {
 
   @IsNotEmpty()
   @IsString()
-  staff_id: string;
+  administered_by: string;
 
   @IsNotEmpty()
   @IsString()

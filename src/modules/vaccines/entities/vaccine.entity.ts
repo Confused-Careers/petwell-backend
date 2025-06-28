@@ -1,7 +1,6 @@
 import { Entity, Column, PrimaryGeneratedColumn, ManyToOne, JoinColumn } from 'typeorm';
 import { PetProfile } from '../../pets/entities/pet-profile.entity';
 import { HumanOwner } from '../../human-owners/entities/human-owner.entity';
-import { Staff } from '../../staff/entities/staff.entity';
 import { Status } from '../../../shared/enums/status.enum';
 import { Document } from '../../documents/entities/document.entity';
 
@@ -18,9 +17,8 @@ export class Vaccine {
   @JoinColumn({ name: 'human_owner_id' })
   human_owner: HumanOwner;
 
-  @ManyToOne(() => Staff, { nullable: true })
-  @JoinColumn({ name: 'staff_id' })
-  staff: Staff;
+  @Column({ nullable: true })
+  administered_by: string;
 
   @Column({ nullable: true })
   brand: string;

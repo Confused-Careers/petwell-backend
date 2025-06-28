@@ -1,11 +1,8 @@
 import { Injectable, NotFoundException, UnauthorizedException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Like } from 'typeorm';
+import { Repository } from 'typeorm';
 import { Vaccine } from './entities/vaccine.entity';
 import { PetProfile } from '../pets/entities/pet-profile.entity';
-import { Staff } from '../staff/entities/staff.entity';
-import { Business } from '../businesses/entities/business.entity';
-import { Team } from '../teams/entities/team.entity';
 import { Document } from '../documents/entities/document.entity';
 import { DocumentsService } from '../documents/documents.service';
 import { AuditLog } from '../audit-logs/entities/audit-log.entity';
@@ -14,7 +11,8 @@ import { UpdateVaccineDto } from './dto/update-vaccine.dto';
 import { Status } from '../../shared/enums/status.enum';
 import { DocumentType } from '../../shared/enums/document-type.enum';
 import { Express } from 'express';
-import { geminiModel } from '../../config/gemini.config';
+import { openaiClient, openaiModel } from '../../config/openai.config';
+import * as pdfParse from 'pdf-parse';
 
 @Injectable()
 export class VaccinesService {
@@ -23,12 +21,6 @@ export class VaccinesService {
     private vaccineRepository: Repository<Vaccine>,
     @InjectRepository(PetProfile)
     private petRepository: Repository<PetProfile>,
-    @InjectRepository(Staff)
-    private staffRepository: Repository<Staff>,
-    @InjectRepository(Business)
-    private businessRepository: Repository<Business>,
-    @InjectRepository(Team)
-    private teamRepository: Repository<Team>,
     @InjectRepository(Document)
     private documentRepository: Repository<Document>,
     @InjectRepository(AuditLog)
@@ -37,7 +29,7 @@ export class VaccinesService {
   ) {}
 
   async create(createVaccineDto: CreateVaccineDto, user: any, file: Express.Multer.File | undefined, ipAddress: string, userAgent: string) {
-    const { vaccine_name, date_administered, date_due, staff_id, pet_id } = createVaccineDto;
+    const { vaccine_name, date_administered, date_due, administered_by, pet_id } = createVaccineDto;
 
     const pet = await this.petRepository.findOne({
       where: { id: pet_id, status: Status.Active },
@@ -46,33 +38,16 @@ export class VaccinesService {
     if (!pet) throw new NotFoundException('Pet not found');
     if (pet.breed_species.species_name !== 'Dog' && pet.breed_species.species_name !== 'Cat') throw new UnauthorizedException('Vaccines are only for dogs or cats');
 
-    const staff = await this.staffRepository.findOne({
-      where: { id: staff_id, status: Status.Active, role_name: 'Veterinarian' },
-      relations: ['business'],
-    });
-    if (!staff) throw new NotFoundException('Veterinarian not found');
-
-    if (user.entityType === 'Staff' && user.id !== staff_id) {
-      throw new UnauthorizedException('Staff can only create vaccines for themselves');
-    }
-    if (user.entityType === 'Business' && staff.business.id !== user.id) {
-      throw new UnauthorizedException('Business can only create vaccines for their staff');
-    }
     if (user.entityType === 'HumanOwner' && pet.human_owner.id !== user.id) {
       throw new UnauthorizedException('Human owners can only create vaccines for their own pets');
     }
-
-    const team = await this.teamRepository.findOne({
-      where: { pet: { id: pet_id }, business: { id: staff.business.id }, status: Status.Active },
-    });
-    if (!team) throw new UnauthorizedException('Pet must be linked to the business via a team');
 
     let vaccine_document_id: string | undefined;
     if (file) {
       const uploadDocumentDto = {
         document_name: `Vaccine-${vaccine_name}-${pet_id}`,
         document_type: DocumentType.Medical,
-        file_type: file.mimetype.split('/')[1].toUpperCase() as 'PDF' | 'JPG' | 'PNG' | 'DOC' | 'JPEG',
+        file_type: file.mimetype.split('/')[1].toUpperCase() as 'PDF' | 'JPG' | 'PNG' | 'JPEG',
         description: `Vaccine document for ${vaccine_name} administered on ${date_administered}`,
       };
 
@@ -122,7 +97,7 @@ export class VaccinesService {
       vaccine_name,
       date_administered: new Date(date_administered),
       date_due: new Date(date_due),
-      staff,
+      administered_by,
       pet,
       human_owner: pet.human_owner,
       vaccine_document_id,
@@ -166,57 +141,66 @@ export class VaccinesService {
       throw new BadRequestException('Unsupported file type. Only PDF, JPG, JPEG, and PNG are allowed');
     }
 
-    const fileData = {
-      inlineData: {
-        data: file.buffer.toString('base64'),
-        mimeType: file.mimetype,
-      },
-    };
-
-    const prompt = `Extract the following details from the provided vaccine document (image or PDF) if multiple vaccine provide only one at top only:
+    const prompt = `Extract the following details from the provided vaccine document (text or image). If multiple vaccines are listed, provide details for only the first one:
     - Vaccine name
     - Date administered (format: YYYY-MM-DD)
     - Expiry date (format: YYYY-MM-DD)
     - Administered by (doctor's name)
     Return the response in JSON format, without markdown code fences. If a field cannot be extracted, return null for that field. Example:
     {"vaccine_name":"Rabies","date_administered":"2023-01-15","expiry_date":"2024-01-15","administered_by":"Dr. John Doe"}`;
-    
-    const result = await geminiModel.generateContent([prompt, fileData]);
-    const responseText = result.response.text();
+
     let extractedData;
+    if (fileType === 'pdf') {
+      // Extract text from PDF using pdf-parse
+      try {
+        const pdfData = await pdfParse(file.buffer);
+        const pdfText = pdfData.text;
 
-    try {
-      extractedData = JSON.parse(responseText.replace(/```json\n|```/g, '').trim());
-    } catch (error) {
-      throw new BadRequestException('Failed to parse vaccine document data');
-    }
-
-    let staff_id: string | null = null;
-    if (extractedData.administered_by) {
-      const staff = await this.staffRepository.findOne({
-        where: {
-          staff_name: Like(`%${extractedData.administered_by}%`),
-          role_name: 'Veterinarian',
-          status: Status.Active,
-        },
-        relations: ['business'],
-      });
-
-      if (staff) {
-        const team = await this.teamRepository.findOne({
-          where: { pet: { id: petId }, business: { id: staff.business.id }, status: Status.Active },
+        const result = await openaiClient.chat.completions.create({
+          model: openaiModel,
+          messages: [
+            {
+              role: 'user',
+              content: [
+                { type: 'text', text: `${prompt}\n\nDocument text:\n${pdfText}` },
+              ],
+            },
+          ],
         });
 
-        if (team) {
-          staff_id = staff.id;
-        }
+        const responseText = result.choices[0].message.content;
+        extractedData = JSON.parse(responseText.replace(/```json\n|```/g, '').trim());
+      } catch (error) {
+        throw new BadRequestException('Failed to parse PDF document');
       }
+    } else {
+      // Handle image files (jpg, jpeg, png) using Open AI's vision capabilities
+      const result = await openaiClient.chat.completions.create({
+        model: openaiModel,
+        messages: [
+          {
+            role: 'user',
+            content: [
+              { type: 'text', text: prompt },
+              {
+                type: 'image_url',
+                image_url: {
+                  url: `data:${file.mimetype};base64,${file.buffer.toString('base64')}`,
+                },
+              },
+            ],
+          },
+        ],
+      });
+
+      const responseText = result.choices[0].message.content;
+      extractedData = JSON.parse(responseText.replace(/```json\n|```/g, '').trim());
     }
 
     const uploadDocumentDto = {
       document_name: `Vaccine-Document-${petId}-${Date.now()}`,
       document_type: DocumentType.Medical,
-      file_type: fileType.toUpperCase() as 'PDF' | 'JPG' | 'PNG',
+      file_type: fileType.toUpperCase() as 'PDF' | 'JPG' | 'PNG' | 'JPEG',
       description: `Parsed vaccine document for pet ${petId}`,
     };
 
@@ -234,7 +218,7 @@ export class VaccinesService {
         entity_type: 'Document',
         entity_id: document.id,
         action: 'Parse',
-        changes: { ...uploadDocumentDto, pet_id: petId, extracted_data: extractedData, staff_id, human_owner_id: pet.human_owner.id },
+        changes: { ...uploadDocumentDto, pet_id: petId, extracted_data: extractedData, human_owner_id: pet.human_owner.id },
         status: 'Success',
         ip_address: ipAddress,
         user_agent: userAgent,
@@ -247,16 +231,12 @@ export class VaccinesService {
       date_administered: extractedData.date_administered || null,
       expiry_date: extractedData.expiry_date || null,
       administered_by: extractedData.administered_by || null,
-      staff_id,
     };
   }
 
   async findAll(petId?: string) {
     const query = this.vaccineRepository.createQueryBuilder('vaccine')
       .leftJoinAndSelect('vaccine.pet', 'pet')
-      .leftJoinAndSelect('vaccine.staff', 'staff')
-      .leftJoinAndSelect('staff.business', 'business')
-      .leftJoinAndSelect('business.profilePictureDocument', 'profile_picture_document')
       .leftJoinAndSelect('vaccine.vaccineDocument', 'vaccine_document')
       .leftJoinAndSelect('vaccine.human_owner', 'human_owner')
       .where('vaccine.status = :status', { status: Status.Active });
@@ -271,7 +251,7 @@ export class VaccinesService {
   async findOne(id: string) {
     const vaccine = await this.vaccineRepository.findOne({
       where: { id, status: Status.Active },
-      relations: ['pet', 'staff', 'human_owner', 'vaccineDocument'],
+      relations: ['pet', 'human_owner', 'vaccineDocument'],
     });
     if (!vaccine) throw new NotFoundException('Vaccine not found');
     return vaccine;
@@ -280,18 +260,6 @@ export class VaccinesService {
   async update(id: string, updateVaccineDto: UpdateVaccineDto, user: any, file: Express.Multer.File | undefined, ipAddress: string, userAgent: string) {
     const vaccine = await this.findOne(id);
 
-    if (user.entityType === 'Staff' && user.id !== vaccine.staff.id) {
-      throw new UnauthorizedException('Staff can only update their own vaccines');
-    }
-    if (user.entityType === 'Business') {
-      const staff = await this.staffRepository.findOne({
-        where: { id: vaccine.staff.id, status: Status.Active },
-        relations: ['business'],
-      });
-      if (!staff || staff.business.id !== user.id) {
-        throw new UnauthorizedException('Business can only update vaccines for their staff');
-      }
-    }
     if (user.entityType === 'HumanOwner' && vaccine.human_owner.id !== user.id) {
       throw new UnauthorizedException('Human owners can only update vaccines for their own pets');
     }
@@ -308,29 +276,12 @@ export class VaccinesService {
       vaccine.human_owner = pet.human_owner;
     }
 
-    if (updateVaccineDto.staff_id) {
-      const staff = await this.staffRepository.findOne({
-        where: { id: updateVaccineDto.staff_id, status: Status.Active, role_name: 'Veterinarian' },
-        relations: ['business'],
-      });
-      if (!staff) throw new NotFoundException('Veterinarian not found');
-      if (user.entityType === 'Business' && staff.business.id !== user.id) {
-        throw new UnauthorizedException('Business can only assign vaccines to their staff');
-      }
-      vaccine.staff = staff;
-
-      const team = await this.teamRepository.findOne({
-        where: { pet: { id: vaccine.pet.id }, business: { id: staff.business.id }, status: Status.Active },
-      });
-      if (!team) throw new UnauthorizedException('Pet must be linked to the business via a team');
-    }
-
     let vaccine_document_id = vaccine.vaccine_document_id;
     if (file) {
       const uploadDocumentDto = {
         document_name: `Vaccine-${updateVaccineDto.vaccine_name ?? vaccine.vaccine_name}-${vaccine.pet.id}`,
         document_type: DocumentType.Medical,
-        file_type: file.mimetype.split('/')[1].toUpperCase() as 'PDF' | 'JPG' | 'PNG' | 'DOC' | 'JPEG',
+        file_type: file.mimetype.split('/')[1].toUpperCase() as 'PDF' | 'JPG' | 'PNG' | 'JPEG',
         description: `Updated vaccine document for ${updateVaccineDto.vaccine_name ?? vaccine.vaccine_name} administered on ${updateVaccineDto.date_administered ?? vaccine.date_administered}`,
       };
 
@@ -382,6 +333,7 @@ export class VaccinesService {
         ? new Date(updateVaccineDto.date_administered)
         : vaccine.date_administered,
       date_due: updateVaccineDto.date_due ? new Date(updateVaccineDto.date_due) : vaccine.date_due,
+      administered_by: updateVaccineDto.administered_by ?? vaccine.administered_by,
       vaccine_document_id,
     });
 
@@ -405,47 +357,10 @@ export class VaccinesService {
   async remove(id: string, user: any) {
     const vaccine = await this.findOne(id);
 
-    if (user.entityType === 'Staff' && user.id !== vaccine.staff.id) {
-      throw new UnauthorizedException('Staff can only delete their own vaccines');
-    }
-    if (user.entityType === 'Business') {
-      const staff = await this.staffRepository.findOne({
-        where: { id: vaccine.staff.id, status: Status.Active },
-        relations: ['business'],
-      });
-      if (!staff || staff.business.id !== user.id) {
-        throw new UnauthorizedException('Business can only delete vaccines for their staff');
-      }
-    }
-    if (user.entityType === 'HumanOwner' && vaccine.pet.human_owner.id !== user.id) {
+    if (user.entityType === 'HumanOwner' && vaccine.human_owner.id !== user.id) {
       throw new UnauthorizedException('Human owners can only delete vaccines for their own pets');
     }
 
     return this.vaccineRepository.delete(vaccine.id);
-  }
-
-  async findDoctors(petId?: string, businessId?: string) {
-    const query = this.staffRepository.createQueryBuilder('staff')
-      .leftJoinAndSelect('staff.business', 'business')
-      .where('staff.role_name = :role', { role: 'Veterinarian' })
-
-    if (petId) {
-      query
-        .leftJoinAndSelect('teams', 'team', 'team.business.id = staff.business.id')
-        .andWhere('team.pet.id = :petId', { petId })
-    }
-    if (businessId) {
-      query.andWhere('staff.business.id = :businessId', { businessId });
-    }
-
-    return query
-      .select([
-        'staff.id',
-        'staff.staff_name',
-        'staff.email',
-        'business.id',
-        'business.business_name',
-      ])
-      .getMany();
   }
 }

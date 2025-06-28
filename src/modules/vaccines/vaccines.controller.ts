@@ -58,8 +58,8 @@ export class VaccinesController {
     return this.vaccinesService.remove(id, req.user);
   }
 
-  @Get('doctors')
-  async findDoctors(@Query('petId') petId?: string, @Query('businessId') businessId?: string) {
-    return this.vaccinesService.findDoctors(petId, businessId);
-  }
+  // @Get('doctors')
+  // async findDoctors(@Query('petId') petId?: string, @Query('businessId') businessId?: string) {
+  //   return this.vaccinesService.findDoctors(petId, businessId);
+  // }
 }
