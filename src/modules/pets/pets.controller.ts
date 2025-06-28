@@ -1,10 +1,10 @@
-import { Controller, Get, Post, Patch, Param, Body, UseGuards, UseInterceptors, UploadedFile, Req, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Param, Body, UseGuards, UseInterceptors, UploadedFiles, Req, Delete, UploadedFile } from '@nestjs/common';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PetsService } from './pets.service';
 import { CreatePetDto } from './dto/create-pet.dto';
 import { UpdatePetDto } from './dto/update-pet.dto';
-import { UploadDocumentDto } from '@modules/documents/dto/upload-document.dto';
-import { FileInterceptor } from '@nestjs/platform-express';
+import { UploadDocumentDto } from './dto/upload-document.dto';
+import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { Express } from 'express';
 import { PetBreedSpeciesDto } from './dto/get-species-breed.dto';
 
@@ -68,6 +68,17 @@ export class PetsController {
     @Req() req,
   ) {
     return this.petsService.addPetDocument(petId, uploadDocumentDto, file, req.user, req.ip, req.get('user-agent'));
+  }
+
+  @Post('documents/multiple/:petId')
+  @UseInterceptors(FilesInterceptor('files', 10)) // Limit to 10 files
+  async addMultiplePetDocuments(
+    @Param('petId') petId: string,
+    @Body() uploadDocumentDto: UploadDocumentDto,
+    @UploadedFiles() files: Express.Multer.File[],
+    @Req() req,
+  ) {
+    return this.petsService.addMultiplePetDocuments(petId, uploadDocumentDto, files, req.user, req.ip, req.get('user-agent'));
   }
 
   @Patch('documents/:id')

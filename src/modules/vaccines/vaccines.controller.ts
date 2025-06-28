@@ -33,8 +33,8 @@ export class VaccinesController {
   }
 
   @Get('getAllPetVaccines/:id')
-  async findAll(@Param('petId') petId?: string) {
-    return this.vaccinesService.findAll(petId);
+  async findAll(@Param('id') petId: string, @Req() req: Request) {
+    return this.vaccinesService.findAll(petId, req.user);
   }
 
   @Get('getPetVaccine/:id')

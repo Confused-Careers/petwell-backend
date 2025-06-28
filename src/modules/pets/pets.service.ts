@@ -9,13 +9,17 @@ import { AuditLog } from '@modules/audit-logs/entities/audit-log.entity';
 import { Document } from '@modules/documents/entities/document.entity';
 import { CreatePetDto } from './dto/create-pet.dto';
 import { UpdatePetDto } from './dto/update-pet.dto';
-import { UploadDocumentDto } from '@modules/documents/dto/upload-document.dto';
+import { UploadDocumentDto } from './dto/upload-document.dto';
 import { DocumentsService } from '@modules/documents/documents.service';
+import { VaccinesService } from '@modules/vaccines/vaccines.service';
 import { Status } from '@shared/enums/status.enum';
 import { PetBreedSpeciesDto } from './dto/get-species-breed.dto';
 import { DEFAULT_LIMIT, ZERO } from '@shared/utils/constants';
 import { Express } from 'express';
 import { DocumentType } from '@shared/enums/document-type.enum';
+import { openaiClient, openaiModel } from '../../config/openai.config';
+import * as pdfParse from 'pdf-parse';
+import * as path from 'path';
 
 @Injectable()
 export class PetsService {
@@ -33,6 +37,7 @@ export class PetsService {
     @InjectRepository(Document)
     private documentRepository: Repository<Document>,
     private documentsService: DocumentsService,
+    private vaccinesService: VaccinesService,
   ) {}
 
   async create(createPetDto: CreatePetDto, user: any, ipAddress: string, userAgent: string) {
@@ -210,6 +215,247 @@ export class PetsService {
     return updatedPet;
   }
 
+  async addMultiplePetDocuments(
+    petId: string,
+    uploadDocumentDto: UploadDocumentDto,
+    files: Express.Multer.File[],
+    user: any,
+    ipAddress: string,
+    userAgent: string,
+  ) {
+    if (user.entityType !== 'HumanOwner') {
+      throw new UnauthorizedException('Only HumanOwner entities can add pet documents');
+    }
+
+    const pet = await this.petRepository.findOne({
+      where: { id: petId, status: Status.Active },
+      relations: ['human_owner', 'breed_species'],
+    });
+    if (!pet) {
+      throw new NotFoundException('Pet not found');
+    }
+
+    if (pet.human_owner.id !== user.id) {
+      throw new UnauthorizedException('Unauthorized to add documents for this pet');
+    }
+
+    if (!files || files.length === 0) {
+      throw new BadRequestException('At least one file is required');
+    }
+
+    const allowedFileTypes = ['pdf', 'jpg', 'jpeg', 'png'];
+    for (const file of files) {
+      const fileType = file.mimetype.split('/')[1].toLowerCase();
+      if (!allowedFileTypes.includes(fileType)) {
+        throw new BadRequestException('Unsupported file type. Only PDF, JPG, JPEG, and PNG are allowed');
+      }
+    }
+
+    const results = [];
+    for (const file of files) {
+      const fileType = file.mimetype.split('/')[1].toLowerCase();
+      const fileNameWithoutExt = path.parse(file.originalname).name;
+
+      // Classify and extract data in one call
+      const { isVaccine, vaccineData } = await this.classifyAndExtractDocument(file, fileType);
+
+      // Upload the document
+      const document = await this.documentsService.uploadDocument(
+        {
+          ...uploadDocumentDto,
+          document_name: uploadDocumentDto.document_name || fileNameWithoutExt || `Pet-Document-${petId}-${Date.now()}`,
+          document_type: isVaccine ? DocumentType.Medical : (uploadDocumentDto.document_type || DocumentType.Medical),
+          file_type: fileType.toUpperCase() as 'PDF' | 'JPG' | 'PNG' | 'JPEG',
+          description: uploadDocumentDto.description || (isVaccine ? `Vaccine document for pet ${petId}` : `Document for pet ${petId}`),
+          pet_id: petId,
+        },
+        file,
+        user,
+        petId,
+      );
+
+      await this.auditLogRepository.save(
+        this.auditLogRepository.create({
+          entity_type: 'Document',
+          entity_id: document.id,
+          action: 'Create',
+          changes: { ...uploadDocumentDto, pet_id: petId, human_owner_id: user.id, is_vaccine: isVaccine },
+          status: 'Success',
+          ip_address: ipAddress,
+          user_agent: userAgent,
+        }),
+      );
+
+      // Only create a vaccine if isVaccine is true and all required fields are non-null
+      if (isVaccine && vaccineData && 
+          vaccineData.vaccine_name && 
+          vaccineData.date_administered && 
+          vaccineData.expiry_date && 
+          vaccineData.administered_by) {
+        const createVaccineDto = {
+          vaccine_name: vaccineData.vaccine_name,
+          date_administered: vaccineData.date_administered,
+          date_due: vaccineData.expiry_date,
+          administered_by: vaccineData.administered_by,
+          pet_id: petId,
+          vaccine_document_id: document.id,
+        };
+
+        const vaccine = await this.vaccinesService.create(createVaccineDto, user, undefined, ipAddress, userAgent);
+        results.push({ type: 'vaccine', id: vaccine.id, document_id: document.id });
+      } else {
+        results.push({ type: 'document', id: document.id });
+      }
+    }
+
+    return { message: 'Documents processed successfully', results };
+  }
+
+  async addPetDocument(petId: string, uploadDocumentDto: UploadDocumentDto, file: Express.Multer.File, user: any, ipAddress: string, userAgent: string) {
+    if (user.entityType !== 'HumanOwner') {
+      throw new UnauthorizedException('Only HumanOwner entities can add pet documents');
+    }
+
+    const pet = await this.petRepository.findOne({
+      where: { id: petId, status: Status.Active },
+      relations: ['human_owner'],
+    });
+    if (!pet) {
+      throw new NotFoundException('Pet not found');
+    }
+
+    if (pet.human_owner.id !== user.id) {
+      throw new UnauthorizedException('Unauthorized to add documents for this pet');
+    }
+
+    const fileType = file.mimetype.split('/')[1].toLowerCase();
+    if (!['pdf', 'jpg', 'jpeg', 'png'].includes(fileType)) {
+      throw new BadRequestException('Unsupported file type. Only PDF, JPG, JPEG, and PNG are allowed');
+    }
+
+    const fileNameWithoutExt = path.parse(file.originalname).name;
+
+    // Classify and extract data in one call
+    const { isVaccine, vaccineData } = await this.classifyAndExtractDocument(file, fileType);
+
+    const document = await this.documentsService.uploadDocument(
+      {
+        ...uploadDocumentDto,
+        document_name: uploadDocumentDto.document_name || fileNameWithoutExt || `Pet-Document-${petId}-${Date.now()}`,
+        document_type: isVaccine ? DocumentType.Medical : (uploadDocumentDto.document_type || DocumentType.Medical),
+        file_type: fileType.toUpperCase() as 'PDF' | 'JPG' | 'PNG' | 'JPEG',
+        description: uploadDocumentDto.description || (isVaccine ? `Vaccine document for pet ${petId}` : `Document for pet ${petId}`),
+        pet_id: petId,
+      },
+      file,
+      user,
+      petId,
+    );
+
+    await this.auditLogRepository.save(
+      this.auditLogRepository.create({
+        entity_type: 'Document',
+        entity_id: document.id,
+        action: 'Create',
+        changes: { ...uploadDocumentDto, pet_id: petId, human_owner_id: user.id, is_vaccine: isVaccine },
+        status: 'Success',
+        ip_address: ipAddress,
+        user_agent: userAgent,
+      }),
+    );
+
+    // Only create a vaccine if isVaccine is true and all required fields are non-null
+    if (isVaccine && vaccineData && 
+        vaccineData.vaccine_name && 
+        vaccineData.date_administered && 
+        vaccineData.expiry_date && 
+        vaccineData.administered_by) {
+      const createVaccineDto = {
+        vaccine_name: vaccineData.vaccine_name,
+        date_administered: vaccineData.date_administered,
+        date_due: vaccineData.expiry_date,
+        administered_by: vaccineData.administered_by,
+        pet_id: petId,
+        vaccine_document_id: document.id,
+      };
+
+      const vaccine = await this.vaccinesService.create(createVaccineDto, user, undefined, ipAddress, userAgent);
+      return { type: 'vaccine', id: vaccine.id, document_id: document.id };
+    }
+
+    return { type: 'document', id: document.id };
+  }
+
+  private async classifyAndExtractDocument(file: Express.Multer.File, fileType: string): Promise<{
+    isVaccine: boolean;
+    vaccineData: { vaccine_name: string | null; date_administered: string | null; expiry_date: string | null; administered_by: string | null } | null;
+  }> {
+    const prompt = `Determine if the provided document is a vaccine record. A vaccine record typically contains information such as vaccine name, date administered, expiry date, or administered by a veterinarian. If it is a vaccine record, extract the following details for the first vaccine listed:
+    - Vaccine name
+    - Date administered (format: YYYY-MM-DD)
+    - Expiry date (format: YYYY-MM-DD)
+    - Administered by (doctor's name)
+    Return a JSON object with:
+    - isVaccine: boolean
+    - vaccineData: object with the extracted fields (or null if not a vaccine record)
+    Example: 
+    {
+      "isVaccine": true,
+      "vaccineData": {"vaccine_name":"Rabies","date_administered":"2023-01-15","expiry_date":"2024-01-15","administered_by":"Dr. John Doe"}
+    }
+    or
+    {
+      "isVaccine": false,
+      "vaccineData": null
+    }`;
+
+    try {
+      if (fileType === 'pdf') {
+        const pdfData = await pdfParse(file.buffer);
+        const pdfText = pdfData.text;
+
+        const result = await openaiClient.chat.completions.create({
+          model: openaiModel,
+          messages: [
+            {
+              role: 'user',
+              content: [
+                { type: 'text', text: `${prompt}\n\nDocument text:\n${pdfText}` },
+              ],
+            },
+          ],
+        });
+
+        const responseText = result.choices[0].message.content;
+        return JSON.parse(responseText.replace(/```json\n|```/g, '').trim());
+      } else {
+        const result = await openaiClient.chat.completions.create({
+          model: openaiModel,
+          messages: [
+            {
+              role: 'user',
+              content: [
+                { type: 'text', text: prompt },
+                {
+                  type: 'image_url',
+                  image_url: {
+                    url: `data:${file.mimetype};base64,${file.buffer.toString('base64')}`,
+                  },
+                },
+              ],
+            },
+          ],
+        });
+
+        const responseText = result.choices[0].message.content;
+        return JSON.parse(responseText.replace(/```json\n|```/g, '').trim());
+      }
+    } catch (error) {
+      console.error('Error processing document:', error);
+      return { isVaccine: false, vaccineData: null }; // Default to regular document if processing fails
+    }
+  }
+
   async getAllBreedsAndSpecies() {
     const breedSpecies = await this.breedSpeciesRepository.find({ relations: ['breeds'] });
     return {
@@ -290,48 +536,6 @@ export class PetsService {
     return petDocuments;
   }
 
-  async addPetDocument(petId: string, uploadDocumentDto: UploadDocumentDto, file: Express.Multer.File, user: any, ipAddress: string, userAgent: string) {
-    if (user.entityType !== 'HumanOwner') {
-      throw new UnauthorizedException('Only HumanOwner entities can add pet documents');
-    }
-
-    const pet = await this.petRepository.findOne({
-      where: { id: petId, status: Status.Active },
-      relations: ['human_owner'],
-    });
-    if (!pet) {
-      throw new NotFoundException('Pet not found');
-    }
-
-    if (pet.human_owner.id !== user.id) {
-      throw new UnauthorizedException('Unauthorized to add documents for this pet');
-    }
-
-    const document = await this.documentsService.uploadDocument(
-      {
-        ...uploadDocumentDto,
-        pet_id: petId,
-      },
-      file,
-      user,
-      petId
-    );
-
-    await this.auditLogRepository.save(
-      this.auditLogRepository.create({
-        entity_type: 'Document',
-        entity_id: document.id,
-        action: 'Create',
-        changes: { ...uploadDocumentDto, pet_id: petId, human_owner_id: user.id },
-        status: 'Success',
-        ip_address: ipAddress,
-        user_agent: userAgent,
-      }),
-    );
-
-    return document;
-  }
-
   async updatePetDocument(id: string, uploadDocumentDto: UploadDocumentDto, file: Express.Multer.File, user: any, ipAddress: string, userAgent: string) {
     if (user.entityType !== 'HumanOwner') {
       throw new UnauthorizedException('Only HumanOwner entities can update pet documents');
@@ -353,10 +557,20 @@ export class PetsService {
       throw new UnauthorizedException('Unauthorized to update this document');
     }
 
+    const fileType = file.mimetype.split('/')[1].toLowerCase();
+    if (!['pdf', 'jpg', 'jpeg', 'png'].includes(fileType)) {
+      throw new BadRequestException('Unsupported file type. Only PDF, JPG, JPEG, and PNG are allowed');
+    }
+
+    const fileNameWithoutExt = path.parse(file.originalname).name;
+
     const updatedDocument = await this.documentsService.updateDocument(
       id,
       {
         ...uploadDocumentDto,
+        document_name: uploadDocumentDto.document_name || fileNameWithoutExt || `Pet-Document-${document.pet.id}-${Date.now()}`,
+        document_type: uploadDocumentDto.document_type || DocumentType.Medical,
+        file_type: fileType.toUpperCase() as 'PDF' | 'JPG' | 'PNG' | 'JPEG',
         pet_id: document.pet.id,
       },
       file,

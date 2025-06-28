@@ -84,7 +84,7 @@ export class VaccinesService {
         this.auditLogRepository.create({
           entity_type: 'Document',
           entity_id: document.id,
-          action: 'Link',
+          action: 'Create',
           changes: { vaccine_id: undefined, pet_id, human_owner_id: pet.human_owner.id },
           status: 'Success',
           ip_address: ipAddress,
@@ -151,7 +151,6 @@ export class VaccinesService {
 
     let extractedData;
     if (fileType === 'pdf') {
-      // Extract text from PDF using pdf-parse
       try {
         const pdfData = await pdfParse(file.buffer);
         const pdfText = pdfData.text;
@@ -174,7 +173,6 @@ export class VaccinesService {
         throw new BadRequestException('Failed to parse PDF document');
       }
     } else {
-      // Handle image files (jpg, jpeg, png) using Open AI's vision capabilities
       const result = await openaiClient.chat.completions.create({
         model: openaiModel,
         messages: [
@@ -234,18 +232,33 @@ export class VaccinesService {
     };
   }
 
-  async findAll(petId?: string) {
-    const query = this.vaccineRepository.createQueryBuilder('vaccine')
+  async findAll(petId: string, user: any) {
+    if (!petId) {
+      throw new BadRequestException('Pet ID is required');
+    }
+
+    const pet = await this.petRepository.findOne({
+      where: { id: petId, status: Status.Active },
+      relations: ['human_owner'],
+    });
+    if (!pet) {
+      throw new NotFoundException('Pet not found');
+    }
+
+    if (user.entityType === 'HumanOwner' && pet.human_owner.id !== user.id) {
+      throw new UnauthorizedException('Human owners can only access vaccines for their own pets');
+    }
+
+    const vaccines = await this.vaccineRepository.createQueryBuilder('vaccine')
       .leftJoinAndSelect('vaccine.pet', 'pet')
       .leftJoinAndSelect('vaccine.vaccineDocument', 'vaccine_document')
       .leftJoinAndSelect('vaccine.human_owner', 'human_owner')
-      .where('vaccine.status = :status', { status: Status.Active });
+      .where('vaccine.status = :status', { status: Status.Active })
+      .andWhere('pet.status = :petStatus', { petStatus: Status.Active })
+      .andWhere('vaccine.pet_id = :petId', { petId })
+      .getMany();
 
-    if (petId) {
-      query.andWhere('vaccine.pet_id = :petId', { petId });
-    }
-
-    return query.getMany();
+    return vaccines;
   }
 
   async findOne(id: string) {
@@ -318,7 +331,7 @@ export class VaccinesService {
         this.auditLogRepository.create({
           entity_type: 'Document',
           entity_id: document.id,
-          action: 'Link',
+          action: 'Create',
           changes: { vaccine_id: id, pet_id: vaccine.pet.id, human_owner_id: vaccine.human_owner.id },
           status: 'Success',
           ip_address: ipAddress,
