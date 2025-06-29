@@ -1,23 +1,34 @@
-FROM python:3.10-alpine AS builder
+FROM node:20-alpine AS development
 
 WORKDIR /app
 
-COPY requirement.txt .
+COPY package*.json ./
 
-RUN apk add --no-cache gcc musl-dev && \
-    pip install --no-cache-dir -r requirement.txt
+RUN npm ci
 
-FROM python:3.10-alpine
+COPY . .
+
+RUN npm run build
+
+FROM node:20-alpine AS production
+
+RUN apk add --no-cache dumb-init
 
 WORKDIR /app
 
-COPY src/ ./src/
-COPY --from=builder /usr/local/lib/python3.10/site-packages /usr/local/lib/python3.10/site-packages
+COPY package*.json ./
 
-RUN apk add --no-cache libpq && \
-    adduser -D appuser && \
-    chown -R appuser:appuser /app
+RUN npm ci --only=production && npm cache clean --force
 
-USER appuser
+COPY --from=development /app/dist ./dist
 
-CMD ["python", "-m", "src.main"]
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nestjs -u 1001
+
+USER nestjs
+
+EXPOSE 4000
+
+ENTRYPOINT ["dumb-init", "--"]
+
+CMD ["node", "dist/src/main"]
