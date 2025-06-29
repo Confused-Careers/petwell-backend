@@ -31,4 +31,4 @@ EXPOSE 4000
 
 ENTRYPOINT ["dumb-init", "--"]
 
-CMD ["node", "dist/src/main"]
+CMD ["node", "dist/main"]
