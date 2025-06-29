@@ -37,10 +37,6 @@ export class VaccinesService {
     });
     if (!pet) throw new NotFoundException('Pet not found');
 
-    if (user.entityType === 'HumanOwner' && pet.human_owner.id !== user.id) {
-      throw new UnauthorizedException('Human owners can only create vaccines for their own pets');
-    }
-
     let vaccine_document_id: string | undefined;
     if (file) {
       const uploadDocumentDto = {
