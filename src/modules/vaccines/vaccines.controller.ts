@@ -55,7 +55,7 @@ export class VaccinesController {
 
   @Delete('delete/:id')
   async remove(@Param('id') id: string, @Req() req: Request) {
-    return this.vaccinesService.remove(id, req.user);
+    return this.vaccinesService.remove(id, req.user, req.ip, req.get('user-agent'));
   }
 
   // @Get('doctors')

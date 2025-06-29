@@ -14,13 +14,14 @@ import { Vaccine } from '../vaccines/entities/vaccine.entity';
 import { DocumentsModule } from '../documents/documents.module';
 import { VaccinesService } from '../vaccines/vaccines.service';
 import { redisConfig } from '../../config/redis.config';
+import { BusinessPetMapping } from '@modules/businesses/entities/business-pet-mapping.entity';
 
 @Module({
   imports: [
     BullModule.registerQueue({
       name: 'document-processing',
     }),
-    TypeOrmModule.forFeature([PetProfile, BreedSpecies, Breed, HumanOwner, AuditLog, Document, Vaccine]),
+    TypeOrmModule.forFeature([PetProfile, BreedSpecies, Breed, HumanOwner, AuditLog, Document, Vaccine, BusinessPetMapping]),
     DocumentsModule,
     RedisModule.forRootAsync(redisConfig),
   ],

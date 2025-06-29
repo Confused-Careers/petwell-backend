@@ -10,11 +10,12 @@ import { Team } from '../teams/entities/team.entity';
 import { Document } from '../documents/entities/document.entity';
 import { AuditLog } from '../audit-logs/entities/audit-log.entity';
 import { DocumentsModule } from '../documents/documents.module';
+import { BusinessPetMapping } from '@modules/businesses/entities/business-pet-mapping.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Vaccine, PetProfile, Staff, Business, Team, Document, AuditLog]),
-    DocumentsModule, 
+    TypeOrmModule.forFeature([Vaccine, PetProfile, Staff, Business, Team, Document, AuditLog, BusinessPetMapping]),
+    DocumentsModule,
   ],
   controllers: [VaccinesController],
   providers: [VaccinesService],

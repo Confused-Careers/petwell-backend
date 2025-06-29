@@ -16,11 +16,12 @@ import { VaccinesService } from '../vaccines/vaccines.service';
 import { UuidValidationPipe } from '../../common/pipes/uuid-validation.pipe';
 import { DocumentProcessingModule } from '../document-processing/document-processing.module';
 import { redisConfig } from '../../config/redis.config';
+import { BusinessPetMapping } from '@modules/businesses/entities/business-pet-mapping.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([PetProfile, BreedSpecies, Breed, HumanOwner, AuditLog, Document, Vaccine]),
-    DocumentsModule,
+    TypeOrmModule.forFeature([PetProfile, BreedSpecies, Breed, HumanOwner, AuditLog, Document, Vaccine, BusinessPetMapping]),
+    DocumentsModule, 
     BullModule.registerQueue({
       name: 'document-processing',
     }),

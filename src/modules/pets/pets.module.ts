@@ -13,10 +13,11 @@ import { DocumentsModule } from '../documents/documents.module';
 import { VaccinesService } from '../vaccines/vaccines.service';
 import { UuidValidationPipe } from '../../common/pipes/uuid-validation.pipe';
 import { Vaccine } from '../vaccines/entities/vaccine.entity';
+import { BusinessPetMapping } from '@modules/businesses/entities/business-pet-mapping.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([PetProfile, BreedSpecies, Breed, HumanOwner, AuditLog, Document, Vaccine]),
+    TypeOrmModule.forFeature([PetProfile, BreedSpecies, Breed, HumanOwner, AuditLog, Document, Vaccine, BusinessPetMapping]),
     DocumentsModule,
   ],
   controllers: [BreedsSpeciesController, PetsController],

@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, UnauthorizedException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, FindOptionsWhere } from 'typeorm';
 import { PetProfile } from './entities/pet-profile.entity';
 import { BreedSpecies } from './entities/breed-species.entity';
 import { Breed } from './entities/breed.entity';
@@ -20,6 +20,9 @@ import { DocumentType } from '@shared/enums/document-type.enum';
 import { openaiClient, openaiModel } from '../../config/openai.config';
 import * as pdfParse from 'pdf-parse';
 import * as path from 'path';
+import { BusinessPetMapping } from '@modules/businesses/entities/business-pet-mapping.entity';
+import { Staff } from '@modules/staff/entities/staff.entity';
+import { Vaccine } from '@modules/vaccines/entities/vaccine.entity';
 
 @Injectable()
 export class PetsService {
@@ -36,6 +39,10 @@ export class PetsService {
     private auditLogRepository: Repository<AuditLog>,
     @InjectRepository(Document)
     private documentRepository: Repository<Document>,
+    @InjectRepository(BusinessPetMapping)
+    private businessPetMappingRepository: Repository<BusinessPetMapping>,
+    @InjectRepository(Vaccine)
+    private vaccineRepository: Repository<Vaccine>,
     private documentsService: DocumentsService,
     private vaccinesService: VaccinesService,
   ) {}
@@ -95,21 +102,24 @@ export class PetsService {
   }
 
   async findAllByOwner(user: any) {
-    if (user.entityType !== 'HumanOwner') {
-      throw new UnauthorizedException('Only HumanOwner entities can access pets');
+    if (user.entityType === 'HumanOwner') {
+      return this.petRepository.find({
+        where: { human_owner: { id: user.id }, status: Status.Active },
+        relations: ['breed_species', 'breed', 'human_owner', 'profilePictureDocument'],
+      });
+    } else if (user.entityType === 'Business' || user.entityType === 'Staff') {
+      const businessId = user.entityType === 'Business' ? user.id : (user as Staff).business.id;
+      const mappings = await this.businessPetMappingRepository.find({
+        where: { business: { id: businessId }, status: Status.Active } as FindOptionsWhere<BusinessPetMapping>,
+        relations: ['pet', 'pet.breed_species', 'pet.breed', 'pet.human_owner', 'pet.profilePictureDocument'],
+      });
+      return mappings.map((mapping) => mapping.pet);
+    } else {
+      throw new UnauthorizedException('Only HumanOwner, Business, or Staff entities can access pets');
     }
-
-    return this.petRepository.find({
-      where: { human_owner: { id: user.id }, status: Status.Active },
-      relations: ['breed_species', 'breed', 'human_owner', 'profilePictureDocument'],
-    });
   }
 
   async findOne(id: string, user: any) {
-    if (user.entityType !== 'HumanOwner') {
-      throw new UnauthorizedException('Only HumanOwner entities can access pets');
-    }
-
     const pet = await this.petRepository.findOne({
       where: { id, status: Status.Active },
       relations: ['human_owner', 'breed_species', 'breed', 'profilePictureDocument'],
@@ -118,8 +128,20 @@ export class PetsService {
       throw new NotFoundException('Pet not found');
     }
 
-    if (pet.human_owner.id !== user.id) {
-      throw new UnauthorizedException('Unauthorized to access this pet');
+    if (user.entityType === 'HumanOwner') {
+      if (pet.human_owner.id !== user.id) {
+        throw new UnauthorizedException('Unauthorized to access this pet');
+      }
+    } else if (user.entityType === 'Business' || user.entityType === 'Staff') {
+      const businessId = user.entityType === 'Business' ? user.id : (user as Staff).business.id;
+      const mapping = await this.businessPetMappingRepository.findOne({
+        where: { pet: { id }, business: { id: businessId }, status: Status.Active } as FindOptionsWhere<BusinessPetMapping>,
+      });
+      if (!mapping) {
+        throw new UnauthorizedException('No business-pet mapping found for this pet');
+      }
+    } else {
+      throw new UnauthorizedException('Only HumanOwner, Business, or Staff entities can access pets');
     }
 
     return pet;
@@ -215,6 +237,36 @@ export class PetsService {
     return updatedPet;
   }
 
+  private async checkPetAccess(petId: string, user: any): Promise<PetProfile> {
+    const pet = await this.petRepository.findOne({
+      where: { id: petId, status: Status.Active },
+      relations: ['human_owner'],
+    });
+    if (!pet) {
+      throw new NotFoundException('Pet not found');
+    }
+
+    if (user.entityType === 'HumanOwner' && pet.human_owner.id !== user.id) {
+      throw new UnauthorizedException('Unauthorized to access this pet');
+    }
+
+    if (user.entityType === 'Business' || user.entityType === 'Staff') {
+      const businessId = user.entityType === 'Business' ? user.id : (user as Staff).business.id;
+      const mapping = await this.businessPetMappingRepository.findOne({
+        where: {
+          pet: { id: petId },
+          business: { id: businessId },
+          status: Status.Active,
+        } as FindOptionsWhere<BusinessPetMapping>,
+      });
+      if (!mapping) {
+        throw new UnauthorizedException('No business-pet mapping found for this pet');
+      }
+    }
+
+    return pet;
+  }
+
   async addMultiplePetDocuments(
     petId: string,
     uploadDocumentDto: UploadDocumentDto,
@@ -223,21 +275,11 @@ export class PetsService {
     ipAddress: string,
     userAgent: string,
   ) {
-    if (user.entityType !== 'HumanOwner') {
-      throw new UnauthorizedException('Only HumanOwner entities can add pet documents');
+    if (!['HumanOwner', 'Business', 'Staff'].includes(user.entityType)) {
+      throw new UnauthorizedException('Only HumanOwner, Business, or Staff entities can add pet documents');
     }
 
-    const pet = await this.petRepository.findOne({
-      where: { id: petId, status: Status.Active },
-      relations: ['human_owner', 'breed_species'],
-    });
-    if (!pet) {
-      throw new NotFoundException('Pet not found');
-    }
-
-    if (pet.human_owner.id !== user.id) {
-      throw new UnauthorizedException('Unauthorized to add documents for this pet');
-    }
+    const pet = await this.checkPetAccess(petId, user);
 
     if (!files || files.length === 0) {
       throw new BadRequestException('At least one file is required');
@@ -277,7 +319,14 @@ export class PetsService {
           entity_type: 'Document',
           entity_id: document.id,
           action: 'Create',
-          changes: { ...uploadDocumentDto, pet_id: petId, human_owner_id: user.id, is_vaccine: isVaccine },
+          changes: {
+            ...uploadDocumentDto,
+            pet_id: petId,
+            human_owner_id: pet.human_owner.id,
+            is_vaccine: isVaccine,
+            business_id: user.entityType === 'Business' ? user.id : user.entityType === 'Staff' ? (user as Staff).business.id : undefined,
+            staff_id: user.entityType === 'Staff' ? user.id : undefined,
+          },
           status: 'Success',
           ip_address: ipAddress,
           user_agent: userAgent,
@@ -314,21 +363,11 @@ export class PetsService {
   }
 
   async addPetDocument(petId: string, uploadDocumentDto: UploadDocumentDto, file: Express.Multer.File, user: any, ipAddress: string, userAgent: string) {
-    if (user.entityType !== 'HumanOwner') {
-      throw new UnauthorizedException('Only HumanOwner entities can add pet documents');
+    if (!['HumanOwner', 'Business', 'Staff'].includes(user.entityType)) {
+      throw new UnauthorizedException('Only HumanOwner, Business, or Staff entities can add pet documents');
     }
 
-    const pet = await this.petRepository.findOne({
-      where: { id: petId, status: Status.Active },
-      relations: ['human_owner'],
-    });
-    if (!pet) {
-      throw new NotFoundException('Pet not found');
-    }
-
-    if (pet.human_owner.id !== user.id) {
-      throw new UnauthorizedException('Unauthorized to add documents for this pet');
-    }
+    const pet = await this.checkPetAccess(petId, user);
 
     const fileType = file.mimetype.split('/')[1].toLowerCase();
     if (!['pdf', 'jpg', 'jpeg', 'png'].includes(fileType)) {
@@ -358,7 +397,14 @@ export class PetsService {
         entity_type: 'Document',
         entity_id: document.id,
         action: 'Create',
-        changes: { ...uploadDocumentDto, pet_id: petId, human_owner_id: user.id, is_vaccine: isVaccine },
+        changes: {
+          ...uploadDocumentDto,
+          pet_id: petId,
+          human_owner_id: pet.human_owner.id,
+          is_vaccine: isVaccine,
+          business_id: user.entityType === 'Business' ? user.id : user.entityType === 'Staff' ? (user as Staff).business.id : undefined,
+          staff_id: user.entityType === 'Staff' ? user.id : undefined,
+        },
         status: 'Success',
         ip_address: ipAddress,
         user_agent: userAgent,
@@ -529,22 +575,11 @@ export class PetsService {
   }
 
   async getPetDocuments(petId: string, user: any) {
-    if (user.entityType !== 'HumanOwner') {
-      throw new UnauthorizedException('Only HumanOwner entities can access pet documents');
+    if (!['HumanOwner', 'Business', 'Staff'].includes(user.entityType)) {
+      throw new UnauthorizedException('Only HumanOwner, Business, or Staff entities can access pet documents');
     }
 
-    const pet = await this.petRepository.findOne({
-      where: { id: petId, status: Status.Active },
-      relations: ['human_owner'],
-    });
-
-    if (!pet) {
-      throw new NotFoundException('Pet not found');
-    }
-
-    if (pet.human_owner.id !== user.id) {
-      throw new UnauthorizedException('Unauthorized to access this pet\'s documents');
-    }
+    const pet = await this.checkPetAccess(petId, user);
 
     const petDocuments = await this.documentRepository.find({
       where: { pet: { id: petId }, status: Status.Active },
@@ -555,8 +590,8 @@ export class PetsService {
   }
 
   async updatePetDocument(id: string, uploadDocumentDto: UploadDocumentDto, file: Express.Multer.File, user: any, ipAddress: string, userAgent: string) {
-    if (user.entityType !== 'HumanOwner') {
-      throw new UnauthorizedException('Only HumanOwner entities can update pet documents');
+    if (!['HumanOwner', 'Business', 'Staff'].includes(user.entityType)) {
+      throw new UnauthorizedException('Only HumanOwner, Business, or Staff entities can update pet documents');
     }
 
     const document = await this.documentRepository.findOne({
@@ -571,9 +606,7 @@ export class PetsService {
       throw new BadRequestException('Document is not associated with a pet');
     }
 
-    if (document.pet.human_owner.id !== user.id) {
-      throw new UnauthorizedException('Unauthorized to update this document');
-    }
+    await this.checkPetAccess(document.pet.id, user);
 
     const fileType = file.mimetype.split('/')[1].toLowerCase();
     if (!['pdf', 'jpg', 'jpeg', 'png'].includes(fileType)) {
@@ -600,7 +633,13 @@ export class PetsService {
         entity_type: 'Document',
         entity_id: updatedDocument.id,
         action: 'Update',
-        changes: { ...uploadDocumentDto, pet_id: document.pet.id, human_owner_id: user.id },
+        changes: {
+          ...uploadDocumentDto,
+          pet_id: document.pet.id,
+          human_owner_id: document.pet.human_owner.id,
+          business_id: user.entityType === 'Business' ? user.id : user.entityType === 'Staff' ? (user as Staff).business.id : undefined,
+          staff_id: user.entityType === 'Staff' ? user.id : undefined,
+        },
         status: 'Success',
         ip_address: ipAddress,
         user_agent: userAgent,
@@ -611,8 +650,8 @@ export class PetsService {
   }
 
   async updatePetDocumentName(id: string, documentName: string, user: any, ipAddress: string, userAgent: string) {
-    if (user.entityType !== 'HumanOwner') {
-      throw new UnauthorizedException('Only HumanOwner entities can update pet documents');
+    if (!['HumanOwner', 'Business', 'Staff'].includes(user.entityType)) {
+      throw new UnauthorizedException('Only HumanOwner, Business, or Staff entities can update pet documents');
     }
 
     const document = await this.documentRepository.findOne({
@@ -627,9 +666,7 @@ export class PetsService {
       throw new BadRequestException('Document is not associated with a pet');
     }
 
-    if (document.pet.human_owner.id !== user.id) {
-      throw new UnauthorizedException('Unauthorized to update this document');
-    }
+    await this.checkPetAccess(document.pet.id, user);
 
     if (!documentName || documentName.trim().length === 0) {
       throw new BadRequestException('Document name cannot be empty');
@@ -643,7 +680,13 @@ export class PetsService {
         entity_type: 'Document',
         entity_id: id,
         action: 'Update',
-        changes: { document_name: documentName, pet_id: document.pet.id, human_owner_id: user.id },
+        changes: {
+          document_name: documentName,
+          pet_id: document.pet.id,
+          human_owner_id: document.pet.human_owner.id,
+          business_id: user.entityType === 'Business' ? user.id : user.entityType === 'Staff' ? (user as Staff).business.id : undefined,
+          staff_id: user.entityType === 'Staff' ? user.id : undefined,
+        },
         status: 'Success',
         ip_address: ipAddress,
         user_agent: userAgent,
@@ -654,8 +697,8 @@ export class PetsService {
   }
 
   async deletePetDocument(id: string, user: any, ipAddress: string, userAgent: string) {
-    if (user.entityType !== 'HumanOwner') {
-      throw new UnauthorizedException('Only HumanOwner entities can delete pet documents');
+    if (!['HumanOwner', 'Business', 'Staff'].includes(user.entityType)) {
+      throw new UnauthorizedException('Only HumanOwner, Business, or Staff entities can delete pet documents');
     }
 
     const document = await this.documentRepository.findOne({
@@ -671,8 +714,17 @@ export class PetsService {
       throw new BadRequestException('Document is not associated with a pet');
     }
 
-    if (document.pet.human_owner.id !== user.id) {
-      throw new UnauthorizedException('Unauthorized to delete this document');
+    await this.checkPetAccess(document.pet.id, user);
+
+    const relatedVaccines = await this.vaccineRepository.find({
+      where: { vaccine_document_id: id, status: Status.Active },
+    });
+
+    if (relatedVaccines.length > 0) {
+      await this.vaccineRepository.update(
+        { vaccine_document_id: id },
+        { vaccine_document_id: null },
+      );
     }
 
     await this.documentRepository.remove(document);
@@ -682,7 +734,13 @@ export class PetsService {
         entity_type: 'Document',
         entity_id: id,
         action: 'Delete',
-        changes: { pet_id: document.pet.id, human_owner_id: user.id },
+        changes: {
+          pet_id: document.pet.id,
+          human_owner_id: document.pet.human_owner.id,
+          business_id: user.entityType === 'Business' ? user.id : user.entityType === 'Staff' ? (user as Staff).business.id : undefined,
+          staff_id: user.entityType === 'Staff' ? user.id : undefined,
+          related_vaccines: relatedVaccines.length > 0 ? relatedVaccines.map(v => v.id) : undefined,
+        },
         status: 'Success',
         ip_address: ipAddress,
         user_agent: userAgent,

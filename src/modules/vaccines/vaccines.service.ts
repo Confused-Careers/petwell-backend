@@ -13,6 +13,8 @@ import { DocumentType } from '../../shared/enums/document-type.enum';
 import { Express } from 'express';
 import { openaiClient, openaiModel } from '../../config/openai.config';
 import * as pdfParse from 'pdf-parse';
+import { BusinessPetMapping } from '../businesses/entities/business-pet-mapping.entity';
+import { Staff } from '../staff/entities/staff.entity';
 
 @Injectable()
 export class VaccinesService {
@@ -25,17 +27,52 @@ export class VaccinesService {
     private documentRepository: Repository<Document>,
     @InjectRepository(AuditLog)
     private auditLogRepository: Repository<AuditLog>,
+    @InjectRepository(BusinessPetMapping)
+    private businessPetMappingRepository: Repository<BusinessPetMapping>,
     private documentsService: DocumentsService,
   ) {}
 
-  async create(createVaccineDto: CreateVaccineDto, user: any, file: Express.Multer.File | undefined, ipAddress: string, userAgent: string) {
-    const { vaccine_name, date_administered, date_due, administered_by, pet_id } = createVaccineDto;
-
+  private async checkPetAccess(petId: string, user: any): Promise<PetProfile> {
     const pet = await this.petRepository.findOne({
-      where: { id: pet_id, status: Status.Active },
+      where: { id: petId, status: Status.Active },
       relations: ['human_owner', 'breed_species'],
     });
-    if (!pet) throw new NotFoundException('Pet not found');
+    if (!pet) {
+      throw new NotFoundException('Pet not found');
+    }
+
+    if (user.entityType === 'HumanOwner' && pet.human_owner.id !== user.id) {
+      throw new UnauthorizedException('Human owners can only access their own pets');
+    }
+
+    if (user.entityType === 'Business' || user.entityType === 'Staff') {
+      const businessId = user.entityType === 'Business' ? user.id : (user as Staff).business.id;
+      const mapping = await this.businessPetMappingRepository.findOne({
+        where: {
+          pet: { id: petId },
+          business: { id: businessId },
+          status: Status.Active,
+        } as any, // Type assertion
+      });
+      if (!mapping) {
+        throw new UnauthorizedException('No business-pet mapping found for this pet');
+      }
+    }
+
+    return pet;
+  }
+
+  async create(createVaccineDto: CreateVaccineDto, user: any, file: Express.Multer.File | undefined, ipAddress: string, userAgent: string) {
+    if (!['HumanOwner', 'Business', 'Staff'].includes(user.entityType)) {
+      throw new UnauthorizedException('Only HumanOwner, Business, or Staff entities can create vaccines');
+    }
+
+    const { vaccine_name, date_administered, date_due, administered_by, pet_id } = createVaccineDto;
+
+    const pet = await this.checkPetAccess(pet_id, user);
+    if (pet.breed_species.species_name !== 'Dog' && pet.breed_species.species_name !== 'Cat') {
+      throw new UnauthorizedException('Vaccines are only for dogs or cats');
+    }
 
     let vaccine_document_id: string | undefined;
     if (file) {
@@ -44,16 +81,10 @@ export class VaccinesService {
         document_type: DocumentType.Medical,
         file_type: file.mimetype.split('/')[1].toUpperCase() as 'PDF' | 'JPG' | 'PNG' | 'JPEG',
         description: `Vaccine document for ${vaccine_name} administered on ${date_administered}`,
+        pet_id,
       };
 
-      const document = await this.documentsService.uploadDocument(
-        {
-          ...uploadDocumentDto,
-          pet: { id: pet_id },
-        } as any,
-        file,
-        user,
-      );
+      const document = await this.documentsService.uploadDocument(uploadDocumentDto, file, user, pet_id);
 
       vaccine_document_id = document.id;
 
@@ -62,7 +93,13 @@ export class VaccinesService {
           entity_type: 'Document',
           entity_id: document.id,
           action: 'Create',
-          changes: { ...uploadDocumentDto, pet_id, human_owner_id: pet.human_owner.id },
+          changes: {
+            ...uploadDocumentDto,
+            pet_id,
+            human_owner_id: pet.human_owner.id,
+            business_id: user.entityType === 'Business' ? user.id : user.entityType === 'Staff' ? (user as Staff).business.id : undefined,
+            staff_id: user.entityType === 'Staff' ? user.id : undefined,
+          },
           status: 'Success',
           ip_address: ipAddress,
           user_agent: userAgent,
@@ -80,7 +117,13 @@ export class VaccinesService {
           entity_type: 'Document',
           entity_id: document.id,
           action: 'Create',
-          changes: { vaccine_id: undefined, pet_id, human_owner_id: pet.human_owner.id },
+          changes: {
+            vaccine_id: undefined,
+            pet_id,
+            human_owner_id: pet.human_owner.id,
+            business_id: user.entityType === 'Business' ? user.id : user.entityType === 'Staff' ? (user as Staff).business.id : undefined,
+            staff_id: user.entityType === 'Staff' ? user.id : undefined,
+          },
           status: 'Success',
           ip_address: ipAddress,
           user_agent: userAgent,
@@ -105,7 +148,13 @@ export class VaccinesService {
         entity_type: 'Vaccine',
         entity_id: savedVaccine.id,
         action: 'Create',
-        changes: { ...createVaccineDto, vaccine_document_id, human_owner_id: pet.human_owner.id },
+        changes: {
+          ...createVaccineDto,
+          vaccine_document_id,
+          human_owner_id: pet.human_owner.id,
+          business_id: user.entityType === 'Business' ? user.id : user.entityType === 'Staff' ? (user as Staff).business.id : undefined,
+          staff_id: user.entityType === 'Staff' ? user.id : undefined,
+        },
         status: 'Success',
         ip_address: ipAddress,
         user_agent: userAgent,
@@ -119,15 +168,13 @@ export class VaccinesService {
     if (!petId) throw new BadRequestException('Pet ID is required');
     if (!file) throw new BadRequestException('File is required');
 
-    const pet = await this.petRepository.findOne({
-      where: { id: petId, status: Status.Active },
-      relations: ['human_owner', 'breed_species'],
-    });
-    if (!pet) throw new NotFoundException('Pet not found');
-    if (pet.breed_species.species_name !== 'Dog' && pet.breed_species.species_name !== 'Cat') throw new UnauthorizedException('Documents can only be parsed for dogs or cats');
+    if (!['HumanOwner', 'Business', 'Staff'].includes(user.entityType)) {
+      throw new UnauthorizedException('Only HumanOwner, Business, or Staff entities can parse vaccine documents');
+    }
 
-    if (user.entityType === 'HumanOwner' && pet.human_owner.id !== user.id) {
-      throw new UnauthorizedException('Human owners can only parse documents for their own pets');
+    const pet = await this.checkPetAccess(petId, user);
+    if (pet.breed_species.species_name !== 'Dog' && pet.breed_species.species_name !== 'Cat') {
+      throw new UnauthorizedException('Documents can only be parsed for dogs or cats');
     }
 
     const allowedFileTypes = ['pdf', 'jpg', 'jpeg', 'png'];
@@ -195,23 +242,24 @@ export class VaccinesService {
       document_type: DocumentType.Medical,
       file_type: fileType.toUpperCase() as 'PDF' | 'JPG' | 'PNG' | 'JPEG',
       description: `Parsed vaccine document for pet ${petId}`,
+      pet_id: petId,
     };
 
-    const document = await this.documentsService.uploadDocument(
-      {
-        ...uploadDocumentDto,
-        pet: { id: petId },
-      } as any,
-      file,
-      user,
-    );
+    const document = await this.documentsService.uploadDocument(uploadDocumentDto, file, user, petId);
 
     await this.auditLogRepository.save(
       this.auditLogRepository.create({
         entity_type: 'Document',
         entity_id: document.id,
         action: 'Parse',
-        changes: { ...uploadDocumentDto, pet_id: petId, extracted_data: extractedData, human_owner_id: pet.human_owner.id },
+        changes: {
+          ...uploadDocumentDto,
+          pet_id: petId,
+          extracted_data: extractedData,
+          human_owner_id: pet.human_owner.id,
+          business_id: user.entityType === 'Business' ? user.id : user.entityType === 'Staff' ? (user as Staff).business.id : undefined,
+          staff_id: user.entityType === 'Staff' ? user.id : undefined,
+        },
         status: 'Success',
         ip_address: ipAddress,
         user_agent: userAgent,
@@ -232,17 +280,11 @@ export class VaccinesService {
       throw new BadRequestException('Pet ID is required');
     }
 
-    const pet = await this.petRepository.findOne({
-      where: { id: petId, status: Status.Active },
-      relations: ['human_owner'],
-    });
-    if (!pet) {
-      throw new NotFoundException('Pet not found');
+    if (!['HumanOwner', 'Business', 'Staff'].includes(user.entityType)) {
+      throw new UnauthorizedException('Only HumanOwner, Business, or Staff entities can access vaccines');
     }
 
-    if (user.entityType === 'HumanOwner' && pet.human_owner.id !== user.id) {
-      throw new UnauthorizedException('Human owners can only access vaccines for their own pets');
-    }
+    await this.checkPetAccess(petId, user);
 
     const vaccines = await this.vaccineRepository.createQueryBuilder('vaccine')
       .leftJoinAndSelect('vaccine.pet', 'pet')
@@ -266,11 +308,12 @@ export class VaccinesService {
   }
 
   async update(id: string, updateVaccineDto: UpdateVaccineDto, user: any, file: Express.Multer.File | undefined, ipAddress: string, userAgent: string) {
-    const vaccine = await this.findOne(id);
-
-    if (user.entityType === 'HumanOwner' && vaccine.human_owner.id !== user.id) {
-      throw new UnauthorizedException('Human owners can only update vaccines for their own pets');
+    if (!['HumanOwner', 'Business', 'Staff'].includes(user.entityType)) {
+      throw new UnauthorizedException('Only HumanOwner, Business, or Staff entities can update vaccines');
     }
+
+    const vaccine = await this.findOne(id);
+    await this.checkPetAccess(vaccine.pet.id, user);
 
     let pet = vaccine.pet;
     if (updateVaccineDto.pet_id) {
@@ -280,6 +323,7 @@ export class VaccinesService {
       });
       if (!pet) throw new NotFoundException('Pet not found');
       if (pet.breed_species.species_name !== 'Dog' && pet.breed_species.species_name !== 'Cat') throw new UnauthorizedException('Vaccines are only for dogs or cats');
+      await this.checkPetAccess(updateVaccineDto.pet_id, user);
       vaccine.pet = pet;
       vaccine.human_owner = pet.human_owner;
     }
@@ -291,16 +335,10 @@ export class VaccinesService {
         document_type: DocumentType.Medical,
         file_type: file.mimetype.split('/')[1].toUpperCase() as 'PDF' | 'JPG' | 'PNG' | 'JPEG',
         description: `Updated vaccine document for ${updateVaccineDto.vaccine_name ?? vaccine.vaccine_name} administered on ${updateVaccineDto.date_administered ?? vaccine.date_administered}`,
+        pet_id: vaccine.pet.id,
       };
 
-      const document = await this.documentsService.uploadDocument(
-        {
-          ...uploadDocumentDto,
-          pet: { id: vaccine.pet.id },
-        } as any,
-        file,
-        user,
-      );
+      const document = await this.documentsService.uploadDocument(uploadDocumentDto, file, user, vaccine.pet.id);
 
       vaccine_document_id = document.id;
 
@@ -309,7 +347,14 @@ export class VaccinesService {
           entity_type: 'Document',
           entity_id: document.id,
           action: 'Create',
-          changes: { ...uploadDocumentDto, pet_id: vaccine.pet.id, vaccine_id: id, human_owner_id: vaccine.human_owner.id },
+          changes: {
+            ...uploadDocumentDto,
+            pet_id: vaccine.pet.id,
+            vaccine_id: id,
+            human_owner_id: vaccine.human_owner.id,
+            business_id: user.entityType === 'Business' ? user.id : user.entityType === 'Staff' ? (user as Staff).business.id : undefined,
+            staff_id: user.entityType === 'Staff' ? user.id : undefined,
+          },
           status: 'Success',
           ip_address: ipAddress,
           user_agent: userAgent,
@@ -327,7 +372,13 @@ export class VaccinesService {
           entity_type: 'Document',
           entity_id: document.id,
           action: 'Create',
-          changes: { vaccine_id: id, pet_id: vaccine.pet.id, human_owner_id: vaccine.human_owner.id },
+          changes: {
+            vaccine_id: id,
+            pet_id: vaccine.pet.id,
+            human_owner_id: vaccine.human_owner.id,
+            business_id: user.entityType === 'Business' ? user.id : user.entityType === 'Staff' ? (user as Staff).business.id : undefined,
+            staff_id: user.entityType === 'Staff' ? user.id : undefined,
+          },
           status: 'Success',
           ip_address: ipAddress,
           user_agent: userAgent,
@@ -352,7 +403,13 @@ export class VaccinesService {
         entity_type: 'Vaccine',
         entity_id: id,
         action: 'Update',
-        changes: { ...updateVaccineDto, human_owner_id: vaccine.human_owner.id, vaccine_document_id },
+        changes: {
+          ...updateVaccineDto,
+          human_owner_id: vaccine.human_owner.id,
+          vaccine_document_id,
+          business_id: user.entityType === 'Business' ? user.id : user.entityType === 'Staff' ? (user as Staff).business.id : undefined,
+          staff_id: user.entityType === 'Staff' ? user.id : undefined,
+        },
         status: 'Success',
         ip_address: ipAddress,
         user_agent: userAgent,
@@ -362,13 +419,33 @@ export class VaccinesService {
     return updatedVaccine;
   }
 
-  async remove(id: string, user: any) {
-    const vaccine = await this.findOne(id);
-
-    if (user.entityType === 'HumanOwner' && vaccine.human_owner.id !== user.id) {
-      throw new UnauthorizedException('Human owners can only delete vaccines for their own pets');
+  async remove(id: string, user: any, ipAddress: string, userAgent: string) {
+    if (!['HumanOwner', 'Business', 'Staff'].includes(user.entityType)) {
+      throw new UnauthorizedException('Only HumanOwner, Business, or Staff entities can delete vaccines');
     }
 
-    return this.vaccineRepository.delete(vaccine.id);
+    const vaccine = await this.findOne(id);
+    await this.checkPetAccess(vaccine.pet.id, user);
+
+    await this.vaccineRepository.remove(vaccine);
+
+    await this.auditLogRepository.save(
+      this.auditLogRepository.create({
+        entity_type: 'Vaccine',
+        entity_id: id,
+        action: 'Delete',
+        changes: {
+          pet_id: vaccine.pet.id,
+          human_owner_id: vaccine.human_owner.id,
+          business_id: user.entityType === 'Business' ? user.id : user.entityType === 'Staff' ? (user as Staff).business.id : undefined,
+          staff_id: user.entityType === 'Staff' ? user.id : undefined,
+        },
+        status: 'Success',
+        ip_address: ipAddress,
+        user_agent: userAgent,
+      }),
+    );
+
+    return { message: 'Vaccine deleted successfully' };
   }
 }
