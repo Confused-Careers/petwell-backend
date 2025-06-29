@@ -21,7 +21,7 @@ import { Queue } from 'bull';
 import { createHash } from 'crypto';
 import { InjectRedis } from '@nestjs-modules/ioredis';
 import type { Redis } from 'ioredis';
-import { ChatCompletion, ChatCompletionChunk } from 'openai/resources/chat/completions';
+import { ChatCompletion, ChatCompletionChunk } from 'openai/resources';
 import { Stream } from 'openai/streaming';
 
 @Injectable()
