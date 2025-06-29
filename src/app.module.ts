@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { BullModule } from '@nestjs/bull';
+import { RedisModule } from '@nestjs-modules/ioredis';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from '@modules/auth/auth.module';
@@ -18,6 +20,8 @@ import { AuditLogsModule } from '@modules/audit-logs/audit-logs.module';
 import { dataSourceOptions } from '@config/database.config';
 import { LicensesModule } from './modules/licenses/licenses.module';
 import { UserPetModule } from './modules/user-pet/user-pet.module';
+import { DocumentProcessingModule } from './modules/document-processing/document-processing.module';
+import { redisConfig } from './config/redis.config';
 
 @Module({
   imports: [
@@ -26,6 +30,16 @@ import { UserPetModule } from './modules/user-pet/user-pet.module';
       envFilePath: '.env',
     }),
     TypeOrmModule.forRoot(dataSourceOptions),
+    BullModule.forRootAsync({
+      useFactory: (configService: ConfigService) => ({
+        redis: {
+          host: configService.get<string>('REDIS_HOST', 'localhost'),
+          port: configService.get<number>('REDIS_PORT', 6379),
+        },
+      }),
+      inject: [ConfigService],
+    }),
+    RedisModule.forRootAsync(redisConfig),
     AuthModule,
     BusinessesModule,
     PetsModule,
@@ -40,6 +54,7 @@ import { UserPetModule } from './modules/user-pet/user-pet.module';
     AuditLogsModule,
     LicensesModule,
     UserPetModule,
+    DocumentProcessingModule,
   ],
   controllers: [AppController],
   providers: [AppService],

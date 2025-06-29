@@ -26,6 +26,7 @@ import { Status } from '@shared/enums/status.enum';
 import { DocumentType } from '@shared/enums/document-type.enum';
 import { UploadDocumentDto } from '@modules/documents/dto/upload-document.dto';
 import { Express } from 'express';
+import { Document } from '@modules/documents/entities/document.entity';
 
 @Injectable()
 export class AuthService {
@@ -78,14 +79,14 @@ export class AuthService {
     
     if (!user) {
       await this.auditLogRepository.save(
-       this.auditLogRepository.create({
-        entity_type: entityType || 'Unknown',
-        entity_id: 'unknown',
-        action: 'Login',
-        status: 'Failed',
-        ip_address: ipAddress,
-        user_agent: userAgent,
-      }),
+        this.auditLogRepository.create({
+          entity_type: entityType || 'Unknown',
+          entity_id: 'unknown',
+          action: 'Login',
+          status: 'Failed',
+          ip_address: ipAddress,
+          user_agent: userAgent,
+        }),
       );
       throw new UnauthorizedException('Invalid credentials');
     }
@@ -425,7 +426,7 @@ export class AuthService {
       };
 
       const user = { id: savedHumanOwner.id, entityType: 'HumanOwner' as const };
-      const document = await this.documentsService.uploadDocument(uploadDocumentDto, file, user, savedPet.id, queryRunner.manager);
+      const document: Document = await this.documentsService.uploadDocument(uploadDocumentDto, file, user, savedPet.id, queryRunner.manager);
 
       // Step 4: Update Pet with document ID
       savedPet.profile_picture_document_id = document.id;
@@ -445,24 +446,40 @@ export class AuthService {
     }
   }
 
-  async verifyOtp(identifier: string, otpCode: string) {
+  async verifyOtp(identifier: string, otpCode: string, ipAddress: string, userAgent: string) {
     const whereClause: FindOptionsWhere<HumanOwner | Staff | Business> = identifier.includes('@')
       ? { email: identifier }
       : { username: identifier };
 
     let user: HumanOwner | Staff | Business | null = null;
+    let entityType: string | undefined;
 
     user = await this.humanOwnerRepository.findOne({ where: whereClause as FindOptionsWhere<HumanOwner> });
-    if (!user) {
+    if (user) entityType = 'HumanOwner';
+    else {
       user = await this.staffRepository.findOne({ where: whereClause as FindOptionsWhere<Staff> });
-      if (!user) {
+      if (user) entityType = 'Staff';
+      else {
         user = await this.businessRepository.findOne({ where: whereClause as FindOptionsWhere<Business> });
+        if (user) entityType = 'Business';
       }
     }
 
     if (!user || user.otp_code !== otpCode || OtpUtil.isOtpExpired(user.otp_expires_at)) {
+      await this.auditLogRepository.save(
+        this.auditLogRepository.create({
+          entity_type: entityType || 'Unknown',
+          entity_id: user?.id || 'unknown',
+          action: 'Login',
+          status: 'Failed',
+          ip_address: ipAddress,
+          user_agent: userAgent,
+        }),
+      );
       throw new UnauthorizedException('Invalid or expired OTP');
     }
+
+    const isRegistration = user.otp_type === 'Registration';
 
     user.otp_code = null;
     user.otp_sent_at = null;
@@ -477,6 +494,29 @@ export class AuthService {
     if (user instanceof HumanOwner) await this.humanOwnerRepository.save(user);
     else if (user instanceof Staff) await this.staffRepository.save(user);
     else await this.businessRepository.save(user);
+
+    await this.auditLogRepository.save(
+      this.auditLogRepository.create({
+        entity_type: entityType!,
+        entity_id: user.id,
+        action: 'Login',
+        status: 'Success',
+        ip_address: ipAddress,
+        user_agent: userAgent,
+      }),
+    );
+
+    if (isRegistration) {
+      const payload = {
+        sub: user.id,
+        email: user.email,
+        username: 'username' in user ? user.username : undefined,
+        entityType: entityType,
+      };
+      const token = this.jwtService.sign(payload, { privateKey: jwtConfig.privateKey });
+
+      return { success: true, message: 'OTP verified successfully', access_token: token, entity_type: entityType };
+    }
 
     return { success: true, message: 'OTP verified successfully' };
   }

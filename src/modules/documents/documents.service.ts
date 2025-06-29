@@ -1,5 +1,4 @@
-// src/modules/documents/documents.service.ts
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, Repository } from 'typeorm';
 import { Document } from './entities/document.entity';
@@ -29,7 +28,7 @@ export class DocumentsService {
     private staffRepository: Repository<Staff>,
     @InjectRepository(Business)
     private businessRepository: Repository<Business>,
-    @InjectRepository(PetProfile) // Add PetProfile repository
+    @InjectRepository(PetProfile)
     private petRepository: Repository<PetProfile>,
     private awsService: AwsService,
   ) {}
@@ -39,10 +38,38 @@ export class DocumentsService {
     file: Express.Multer.File,
     user: User,
     petId?: string,
-    manager?: EntityManager, 
+    manager?: EntityManager,
   ) {
+    // Validate file properties
+    if (!file?.buffer || !Buffer.isBuffer(file.buffer)) {
+      console.error('File validation failed:', {
+        originalname: file?.originalname || 'unknown',
+        hasBuffer: !!file?.buffer,
+        isBuffer: Buffer.isBuffer(file?.buffer),
+        bufferSize: file?.buffer?.length,
+      });
+      throw new BadRequestException(`Invalid file: ${file?.originalname || 'unknown'} has no valid buffer`);
+    }
+    if (!file.originalname || !file.mimetype) {
+      console.error('File metadata missing:', {
+        originalname: file?.originalname,
+        mimetype: file?.mimetype,
+      });
+      throw new BadRequestException(`Invalid file: ${file?.originalname || 'unknown'} is missing originalname or mimetype`);
+    }
+
     const key = `${uploadDocumentDto.document_type.toLowerCase()}/${uuid.v4()}-${file.originalname}`;
-    const uploadResult = await this.awsService.uploadFileToS3(key, file.originalname, file);
+    let uploadResult: string;
+    try {
+      uploadResult = await this.awsService.uploadFileToS3(key, file.originalname, file);
+    } catch (error) {
+      console.error('S3 upload error:', {
+        file: file.originalname,
+        error: error.message,
+        stack: error.stack,
+      });
+      throw new BadRequestException(`Failed to upload file ${file.originalname} to S3: ${error.message}`);
+    }
 
     // Use manager if provided, else fallback to repository
     const repo = manager ? manager.getRepository(Document) : this.documentRepository;
@@ -74,8 +101,37 @@ export class DocumentsService {
 
   async updateDocument(id: string, uploadDocumentDto: UploadDocumentDto, file: Express.Multer.File, user: User) {
     const document = await this.getDocument(id);
+
+    // Validate file properties
+    if (!file?.buffer || !Buffer.isBuffer(file.buffer)) {
+      console.error('File validation failed in update:', {
+        originalname: file?.originalname || 'unknown',
+        hasBuffer: !!file?.buffer,
+        isBuffer: Buffer.isBuffer(file?.buffer),
+        bufferSize: file?.buffer?.length,
+      });
+      throw new BadRequestException(`Invalid file: ${file?.originalname || 'unknown'} has no valid buffer`);
+    }
+    if (!file.originalname || !file.mimetype) {
+      console.error('File metadata missing in update:', {
+        originalname: file?.originalname,
+        mimetype: file?.mimetype,
+      });
+      throw new BadRequestException(`Invalid file: ${file?.originalname || 'unknown'} is missing originalname or mimetype`);
+    }
+
     const key = `${uploadDocumentDto.document_type.toLowerCase()}/${uuid.v4()}-${file.originalname}`;
-    const uploadResult = await this.awsService.uploadFileToS3(key, file.originalname, file);
+    let uploadResult: string;
+    try {
+      uploadResult = await this.awsService.uploadFileToS3(key, file.originalname, file);
+    } catch (error) {
+      console.error('S3 update error:', {
+        file: file.originalname,
+        error: error.message,
+        stack: error.stack,
+      });
+      throw new BadRequestException(`Failed to update file ${file.originalname} to S3: ${error.message}`);
+    }
 
     let pet: PetProfile | null = document.pet;
     if (uploadDocumentDto.pet_id) {

@@ -44,8 +44,12 @@ export class AuthController {
   }
 
   @Post('verify-otp')
-  async verifyOtp(@Body('identifier') identifier: string, @Body('otp_code') otpCode: string) {
-    return this.authService.verifyOtp(identifier, otpCode);
+  async verifyOtp(
+    @Body('identifier') identifier: string,
+    @Body('otp_code') otpCode: string,
+    @Req() req: Request,
+  ) {
+    return this.authService.verifyOtp(identifier, otpCode, req.ip, req.headers['user-agent'] || 'unknown');
   }
 
   @Post('resend-otp')
