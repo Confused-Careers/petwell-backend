@@ -17,6 +17,7 @@ import { UuidValidationPipe } from '../../common/pipes/uuid-validation.pipe';
 import { DocumentProcessingModule } from '../document-processing/document-processing.module';
 import { redisConfig } from '../../config/redis.config';
 import { BusinessPetMapping } from '@modules/businesses/entities/business-pet-mapping.entity';
+import { NotificationModule } from '@modules/notification/notification.module';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { BusinessPetMapping } from '@modules/businesses/entities/business-pet-ma
     }),
     RedisModule.forRootAsync(redisConfig),
     DocumentProcessingModule,
+    NotificationModule,
   ],
   controllers: [UserPetController],
   providers: [UserPetService, VaccinesService, UuidValidationPipe],

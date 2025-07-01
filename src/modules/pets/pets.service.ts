@@ -23,6 +23,8 @@ import * as path from 'path';
 import { BusinessPetMapping } from '@modules/businesses/entities/business-pet-mapping.entity';
 import { Staff } from '@modules/staff/entities/staff.entity';
 import { Vaccine } from '@modules/vaccines/entities/vaccine.entity';
+import { NotificationService } from '@modules/notification/notification.service';
+import { Business } from '@modules/businesses/entities/business.entity';
 
 @Injectable()
 export class PetsService {
@@ -45,6 +47,7 @@ export class PetsService {
     private vaccineRepository: Repository<Vaccine>,
     private documentsService: DocumentsService,
     private vaccinesService: VaccinesService,
+    private notificationService: NotificationService,
   ) {}
 
   async create(createPetDto: CreatePetDto, user: any, ipAddress: string, userAgent: string) {
@@ -294,6 +297,7 @@ export class PetsService {
     }
 
     const results = [];
+
     for (const file of files) {
       const fileType = file.mimetype.split('/')[1].toLowerCase();
       const fileNameWithoutExt = path.parse(file.originalname).name;
@@ -410,6 +414,21 @@ export class PetsService {
         user_agent: userAgent,
       }),
     );
+
+    let business: Business | undefined;
+    let staff: Staff | undefined;
+
+    if ((user.entityType === 'Business' || user.entityType === 'Staff') && !isVaccine) {
+      business = user.entityType === 'Business' ? { id: user.id, business_name: user.business_name } as Business : (user as Staff).business;
+      staff = user.entityType === 'Staff' ? { id: user.id, staff_name: user.staff_name } as Staff : undefined;
+      await this.notificationService.createDocumentUploadedNotification(
+        petId,
+        document.description || 'Document uploaded',
+        user,
+        business,
+        staff,
+      );
+    }
 
     const results = [];
     if (isVaccine && vaccines && vaccines.length > 0) {

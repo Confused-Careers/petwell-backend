@@ -15,6 +15,7 @@ import { DocumentsModule } from '../documents/documents.module';
 import { VaccinesService } from '../vaccines/vaccines.service';
 import { redisConfig } from '../../config/redis.config';
 import { BusinessPetMapping } from '@modules/businesses/entities/business-pet-mapping.entity';
+import { NotificationModule } from '@modules/notification/notification.module';
 
 @Module({
   imports: [
@@ -22,7 +23,7 @@ import { BusinessPetMapping } from '@modules/businesses/entities/business-pet-ma
       name: 'document-processing',
     }),
     TypeOrmModule.forFeature([PetProfile, BreedSpecies, Breed, HumanOwner, AuditLog, Document, Vaccine, BusinessPetMapping]),
-    DocumentsModule,
+    DocumentsModule, NotificationModule,
     RedisModule.forRootAsync(redisConfig),
   ],
   providers: [DocumentProcessor, UserPetService, VaccinesService],

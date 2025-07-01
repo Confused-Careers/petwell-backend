@@ -22,6 +22,7 @@ import { LicensesModule } from './modules/licenses/licenses.module';
 import { UserPetModule } from './modules/user-pet/user-pet.module';
 import { DocumentProcessingModule } from './modules/document-processing/document-processing.module';
 import { redisConfig } from './config/redis.config';
+import { NotificationModule } from './modules/notification/notification.module';
 
 @Module({
   imports: [
@@ -55,6 +56,7 @@ import { redisConfig } from './config/redis.config';
     LicensesModule,
     UserPetModule,
     DocumentProcessingModule,
+    NotificationModule,
   ],
   controllers: [AppController],
   providers: [AppService],

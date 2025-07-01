@@ -6,8 +6,7 @@ INSERT INTO breed_species (id, species_name, status, species_description, create
 VALUES
   ('550e8400-e29b-41d4-a716-446655440001', 'Dog', 'Active', 'Canine species', NOW(), NOW()),
   ('550e8400-e29b-41d4-a716-446655440002', 'Cat', 'Active', 'Feline species', NOW(), NOW()),
-  ('550e8400-e29b-41d4-a716-446655440003', 'Other', 'Active', 'Other', NOW(), NOW()),
-ON CONFLICT (id) DO NOTHING;
+  ('550e8400-e29b-41d4-a716-446655440003', 'Other', 'Active', 'Other', NOW(), NOW());
 
 -- Insert breeds data for Dog (idempotent: skip if breed_name and breedSpeciesId exist)
 INSERT INTO breeds (id, breed_name, "breedSpeciesId", status, breed_description, created_at, updated_at)

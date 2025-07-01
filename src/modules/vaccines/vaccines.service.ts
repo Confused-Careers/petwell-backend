@@ -15,6 +15,8 @@ import { openaiClient, openaiModel } from '../../config/openai.config';
 import * as pdfParse from 'pdf-parse';
 import { BusinessPetMapping } from '../businesses/entities/business-pet-mapping.entity';
 import { Staff } from '../staff/entities/staff.entity';
+import { NotificationService } from '../notification/notification.service';
+import { Business } from '../businesses/entities/business.entity';
 
 @Injectable()
 export class VaccinesService {
@@ -29,7 +31,10 @@ export class VaccinesService {
     private auditLogRepository: Repository<AuditLog>,
     @InjectRepository(BusinessPetMapping)
     private businessPetMappingRepository: Repository<BusinessPetMapping>,
+    @InjectRepository(Staff)
+    private staffRepository: Repository<Staff>,
     private documentsService: DocumentsService,
+    private notificationService: NotificationService,
   ) {}
 
   private async checkPetAccess(petId: string, user: any): Promise<PetProfile> {
@@ -41,18 +46,32 @@ export class VaccinesService {
       throw new NotFoundException('Pet not found');
     }
 
-    if (user.entityType === 'HumanOwner' && pet.human_owner.id !== user.id) {
-      throw new UnauthorizedException('Human owners can only access their own pets');
+    let userData;
+    if (user.entityType === 'Staff') {
+      userData = await this.staffRepository.findOne({
+        where: { id: user.id, status: Status.Active },
+        relations: ['business'],
+      });
+      if (!userData) {
+        throw new NotFoundException('Staff not found');
+      }
     }
 
     if (user.entityType === 'Business' || user.entityType === 'Staff') {
-      const businessId = user.entityType === 'Business' ? user.id : (user as Staff).business.id;
+      let businessId: string;
+      if (user.entityType === 'Business') {
+        businessId = user.id;
+      } else if (user.entityType === 'Staff') {
+        businessId = userData.business.id;
+      } else {
+        throw new UnauthorizedException('Invalid user entity type');
+      }
       const mapping = await this.businessPetMappingRepository.findOne({
         where: {
           pet: { id: petId },
           business: { id: businessId },
           status: Status.Active,
-        } as any, // Type assertion
+        } as any,
       });
       if (!mapping) {
         throw new UnauthorizedException('No business-pet mapping found for this pet');
@@ -75,6 +94,21 @@ export class VaccinesService {
     }
 
     let vaccine_document_id: string | undefined;
+    let business: Business | undefined;
+    let staff: Staff | undefined;
+
+    // Fetch Staff entity with business relation if user is Staff
+    let staffData: Staff | undefined;
+    if (user.entityType === 'Staff') {
+      staffData = await this.staffRepository.findOne({
+        where: { id: user.id, status: Status.Active },
+        relations: ['business'],
+      });
+      if (!staffData) {
+        throw new NotFoundException('Staff not found');
+      }
+    }
+
     if (file) {
       const uploadDocumentDto = {
         document_name: `Vaccine-${vaccine_name}-${pet_id}`,
@@ -97,7 +131,7 @@ export class VaccinesService {
             ...uploadDocumentDto,
             pet_id,
             human_owner_id: pet.human_owner.id,
-            business_id: user.entityType === 'Business' ? user.id : user.entityType === 'Staff' ? (user as Staff).business.id : undefined,
+            business_id: user.entityType === 'Business' ? user.id : user.entityType === 'Staff' ? staffData?.business.id : undefined,
             staff_id: user.entityType === 'Staff' ? user.id : undefined,
           },
           status: 'Success',
@@ -121,7 +155,7 @@ export class VaccinesService {
             vaccine_id: undefined,
             pet_id,
             human_owner_id: pet.human_owner.id,
-            business_id: user.entityType === 'Business' ? user.id : user.entityType === 'Staff' ? (user as Staff).business.id : undefined,
+            business_id: user.entityType === 'Business' ? user.id : user.entityType === 'Staff' ? staffData?.business.id : undefined,
             staff_id: user.entityType === 'Staff' ? user.id : undefined,
           },
           status: 'Success',
@@ -152,7 +186,7 @@ export class VaccinesService {
           ...createVaccineDto,
           vaccine_document_id,
           human_owner_id: pet.human_owner.id,
-          business_id: user.entityType === 'Business' ? user.id : user.entityType === 'Staff' ? (user as Staff).business.id : undefined,
+          business_id: user.entityType === 'Business' ? user.id : user.entityType === 'Staff' ? staffData?.business.id : undefined,
           staff_id: user.entityType === 'Staff' ? user.id : undefined,
         },
         status: 'Success',
@@ -160,6 +194,18 @@ export class VaccinesService {
         user_agent: userAgent,
       }),
     );
+
+    if (user.entityType === 'Business' || user.entityType === 'Staff') {
+      business = user.entityType === 'Business' ? { id: user.id, business_name: user.business_name } as Business : staffData?.business;
+      staff = user.entityType === 'Staff' ? { id: user.id, staff_name: staffData?.staff_name } as Staff : undefined;
+      await this.notificationService.createVaccineAddedNotification(
+        pet_id,
+        vaccine_name,
+        user,
+        business,
+        staff,
+      );
+    }
 
     return savedVaccine;
   }
@@ -257,7 +303,7 @@ export class VaccinesService {
           pet_id: petId,
           extracted_data: extractedData,
           human_owner_id: pet.human_owner.id,
-          business_id: user.entityType === 'Business' ? user.id : user.entityType === 'Staff' ? (user as Staff).business.id : undefined,
+          business_id: user.entityType === 'Business' ? user.id : user.entityType === 'Staff' ? (await this.staffRepository.findOne({ where: { id: user.id }, relations: ['business'] }))?.business.id : undefined,
           staff_id: user.entityType === 'Staff' ? user.id : undefined,
         },
         status: 'Success',
@@ -329,6 +375,17 @@ export class VaccinesService {
     }
 
     let vaccine_document_id = vaccine.vaccine_document_id;
+    let staffData: Staff | undefined;
+    if (user.entityType === 'Staff') {
+      staffData = await this.staffRepository.findOne({
+        where: { id: user.id, status: Status.Active },
+        relations: ['business'],
+      });
+      if (!staffData) {
+        throw new NotFoundException('Staff not found');
+      }
+    }
+
     if (file) {
       const uploadDocumentDto = {
         document_name: `Vaccine-${updateVaccineDto.vaccine_name ?? vaccine.vaccine_name}-${vaccine.pet.id}`,
@@ -352,7 +409,7 @@ export class VaccinesService {
             pet_id: vaccine.pet.id,
             vaccine_id: id,
             human_owner_id: vaccine.human_owner.id,
-            business_id: user.entityType === 'Business' ? user.id : user.entityType === 'Staff' ? (user as Staff).business.id : undefined,
+            business_id: user.entityType === 'Business' ? user.id : user.entityType === 'Staff' ? staffData?.business.id : undefined,
             staff_id: user.entityType === 'Staff' ? user.id : undefined,
           },
           status: 'Success',
@@ -376,7 +433,7 @@ export class VaccinesService {
             vaccine_id: id,
             pet_id: vaccine.pet.id,
             human_owner_id: vaccine.human_owner.id,
-            business_id: user.entityType === 'Business' ? user.id : user.entityType === 'Staff' ? (user as Staff).business.id : undefined,
+            business_id: user.entityType === 'Business' ? user.id : user.entityType === 'Staff' ? staffData?.business.id : undefined,
             staff_id: user.entityType === 'Staff' ? user.id : undefined,
           },
           status: 'Success',
@@ -407,7 +464,7 @@ export class VaccinesService {
           ...updateVaccineDto,
           human_owner_id: vaccine.human_owner.id,
           vaccine_document_id,
-          business_id: user.entityType === 'Business' ? user.id : user.entityType === 'Staff' ? (user as Staff).business.id : undefined,
+          business_id: user.entityType === 'Business' ? user.id : user.entityType === 'Staff' ? staffData?.business.id : undefined,
           staff_id: user.entityType === 'Staff' ? user.id : undefined,
         },
         status: 'Success',
@@ -427,6 +484,17 @@ export class VaccinesService {
     const vaccine = await this.findOne(id);
     await this.checkPetAccess(vaccine.pet.id, user);
 
+    let staffData: Staff | undefined;
+    if (user.entityType === 'Staff') {
+      staffData = await this.staffRepository.findOne({
+        where: { id: user.id, status: Status.Active },
+        relations: ['business'],
+      });
+      if (!staffData) {
+        throw new NotFoundException('Staff not found');
+      }
+    }
+
     await this.vaccineRepository.remove(vaccine);
 
     await this.auditLogRepository.save(
@@ -437,7 +505,7 @@ export class VaccinesService {
         changes: {
           pet_id: vaccine.pet.id,
           human_owner_id: vaccine.human_owner.id,
-          business_id: user.entityType === 'Business' ? user.id : user.entityType === 'Staff' ? (user as Staff).business.id : undefined,
+          business_id: user.entityType === 'Business' ? user.id : user.entityType === 'Staff' ? staffData?.business.id : undefined,
           staff_id: user.entityType === 'Staff' ? user.id : undefined,
         },
         status: 'Success',

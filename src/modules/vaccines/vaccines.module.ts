@@ -11,11 +11,14 @@ import { Document } from '../documents/entities/document.entity';
 import { AuditLog } from '../audit-logs/entities/audit-log.entity';
 import { DocumentsModule } from '../documents/documents.module';
 import { BusinessPetMapping } from '@modules/businesses/entities/business-pet-mapping.entity';
+import { Notification } from '@modules/notification/entities/notification.entity';
+import { NotificationModule } from '@modules/notification/notification.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Vaccine, PetProfile, Staff, Business, Team, Document, AuditLog, BusinessPetMapping]),
+    TypeOrmModule.forFeature([Vaccine, PetProfile, Staff, Business, Team, Document, AuditLog, BusinessPetMapping, Notification]),
     DocumentsModule,
+    NotificationModule,
   ],
   controllers: [VaccinesController],
   providers: [VaccinesService],

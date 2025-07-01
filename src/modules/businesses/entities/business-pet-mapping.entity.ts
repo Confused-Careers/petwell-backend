@@ -2,6 +2,7 @@ import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateCol
 import { Business } from './business.entity';
 import { PetProfile } from '../../pets/entities/pet-profile.entity';
 import { Staff } from '../../staff/entities/staff.entity';
+import { Status } from '@shared/enums/status.enum';
 
 @Entity('business_pet_mapping')
 export class BusinessPetMapping {
@@ -31,4 +32,7 @@ export class BusinessPetMapping {
 
   @UpdateDateColumn({ type: 'timestamp' })
   updated_at: Date;
+
+  @Column({ type: 'enum', enum: Status, default: Status.Active })
+  status: Status;
 }
