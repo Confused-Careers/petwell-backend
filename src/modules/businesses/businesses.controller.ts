@@ -3,7 +3,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { BusinessesService } from './businesses.service';
 import { UpdateBusinessDto } from './dto/update-business.dto';
 import { CreateStaffDto } from './dto/create-staff.dto';
-import { UpdateStaffDto } from '../staff/dto/update-staff.dto';
+import { UpdateStaffDto } from './dto/update-staff.dto';
 import { CreateBusinessPetMappingDto } from './dto/create-business-pet-mapping.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Express } from 'express';
@@ -43,9 +43,15 @@ export class BusinessesController {
     return this.businessesService.removeStaff(req.user, staffId);
   }
 
-  @Get('staff/get')
-  async getStaffList(@Req() req, @Query('page') page: string = '1', @Query('limit') limit: string = '10') {
-    return this.businessesService.getStaffList(req.user, parseInt(page), parseInt(limit));
+  @Get('staff')
+  async getStaffList(
+    @Req() req,
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '10',
+    @Query('role') role?: string,
+    @Query('access_level') access_level?: string,
+  ) {
+    return this.businessesService.getStaffList(req.user, parseInt(page), parseInt(limit), role, access_level);
   }
 
   @Post('pets')

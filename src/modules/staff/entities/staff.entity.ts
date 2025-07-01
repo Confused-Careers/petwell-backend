@@ -23,6 +23,9 @@ export class Staff {
   @Column()
   password: string;
 
+  @Column({ type: 'enum', enum: ['Full', 'Editor', 'View'] })
+  access_level: string;
+
   @Column({ nullable: true })
   phone?: string;
 
@@ -35,7 +38,7 @@ export class Staff {
   @Column({ nullable: true })
   token: string;
 
-  @Column()
+  @Column({ type: 'enum', enum: ['Vet','Assistant','Manager','Receptionist', 'Staff'], default: 'Staff' })
   role_name: string;
   
   @Column({ nullable: true })

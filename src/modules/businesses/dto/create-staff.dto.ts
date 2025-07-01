@@ -1,23 +1,27 @@
-import { IsNotEmpty, IsString, IsEmail, IsEnum } from 'class-validator';
+import { IsString, IsEmail, IsNotEmpty, IsOptional, IsEnum } from 'class-validator';
 
 export class CreateStaffDto {
-  @IsNotEmpty()
   @IsString()
+  @IsNotEmpty()
   username: string;
 
-  @IsNotEmpty()
   @IsString()
+  @IsNotEmpty()
   staff_name: string;
 
-  @IsNotEmpty()
   @IsEmail()
+  @IsNotEmpty()
   email: string;
 
-  @IsNotEmpty()
   @IsString()
+  @IsNotEmpty()
   password: string;
 
+  @IsEnum(['Vet', 'Assistant', 'Manager', 'Receptionist'])
   @IsNotEmpty()
-  @IsEnum(['Veterinarian', 'Nurse', 'Receptionist'])
-  role_name: 'Veterinarian' | 'Nurse' | 'Receptionist';
+  role_name?: string;
+
+  @IsEnum(['Full', 'Editor', 'View', 'Staff'])
+  @IsNotEmpty()
+  access_level?: string;
 }

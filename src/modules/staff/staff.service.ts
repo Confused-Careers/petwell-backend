@@ -60,7 +60,6 @@ export class StaffService {
         phone: updateStaffDto.phone || staff.phone,
         address: updateStaffDto.address || staff.address,
         bio: updateStaffDto.bio || staff.bio,
-        role_name: updateStaffDto.role_name || staff.role_name,
       });
 
       return await this.staffRepository.save(staff);

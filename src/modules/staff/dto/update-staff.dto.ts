@@ -20,19 +20,4 @@ export class UpdateStaffDto {
   @IsOptional()
   @IsString()
   bio?: string;
-
-  @IsOptional()
-  @IsEnum([
-    'Veterinarian',
-    'Nurse',
-    'Receptionist',
-    'Groomer',
-    'Trainer',
-    'Nutritionist',
-    'Therapist',
-    'Behaviorist',
-    'Pet Sitter',
-    'Store Manager',
-  ])
-  role_name?: string;
 }

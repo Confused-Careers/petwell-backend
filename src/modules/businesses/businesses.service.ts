@@ -7,7 +7,7 @@ import { PetProfile } from '../pets/entities/pet-profile.entity';
 import { BusinessPetMapping } from './entities/business-pet-mapping.entity';
 import { UpdateBusinessDto } from './dto/update-business.dto';
 import { CreateStaffDto } from './dto/create-staff.dto';
-import { UpdateStaffDto } from '../staff/dto/update-staff.dto';
+import { UpdateStaffDto } from './dto/update-staff.dto';
 import { CreateBusinessPetMappingDto } from './dto/create-business-pet-mapping.dto';
 import { Status } from '../../shared/enums/status.enum';
 import { DocumentsService } from '../documents/documents.service';
@@ -91,6 +91,15 @@ export class BusinessesService {
     const business = await this.businessRepository.findOne({ where: { id: user.id, status: Status.Active } });
     if (!business) throw new NotFoundException('Business not found');
 
+    const validRoles = ['Vet', 'Assistant', 'Manager', 'Receptionist', 'Staff'];
+    const validAccessLevels = ['Full', 'Editor', 'View', 'Staff'];
+    if (createStaffDto.role_name && !validRoles.includes(createStaffDto.role_name)) {
+      throw new BadRequestException(`Invalid role_name. Must be one of: ${validRoles.join(', ')}`);
+    }
+    if (createStaffDto.access_level && !validAccessLevels.includes(createStaffDto.access_level)) {
+      throw new BadRequestException(`Invalid access_level. Must be one of: ${validAccessLevels.join(', ')}`);
+    }
+
     try {
       const hashedPassword = await bcrypt.hash(createStaffDto.password, 10);
       const staff = this.staffRepository.create({
@@ -98,7 +107,8 @@ export class BusinessesService {
         staff_name: createStaffDto.staff_name,
         email: createStaffDto.email,
         password: hashedPassword,
-        role_name: createStaffDto.role_name,
+        role_name: createStaffDto.role_name || 'Staff',
+        access_level: createStaffDto.access_level || 'Staff',
         business,
       });
 
@@ -121,11 +131,21 @@ export class BusinessesService {
     });
     if (!staff) throw new NotFoundException('Staff not found or not associated with this business');
 
+    const validRoles = ['Vet', 'Assistant', 'Manager', 'Receptionist', 'Staff'];
+    const validAccessLevels = ['Full', 'Editor', 'View', 'Staff'];
+    if (updateStaffDto.role_name && !validRoles.includes(updateStaffDto.role_name)) {
+      throw new BadRequestException(`Invalid role_name. Must be one of: ${validRoles.join(', ')}`);
+    }
+    if (updateStaffDto.access_level && !validAccessLevels.includes(updateStaffDto.access_level)) {
+      throw new BadRequestException(`Invalid access_level. Must be one of: ${validAccessLevels.join(', ')}`);
+    }
+
     try {
       Object.assign(staff, {
         staff_name: updateStaffDto.staff_name || staff.staff_name,
         email: updateStaffDto.email || staff.email,
         role_name: updateStaffDto.role_name || staff.role_name,
+        access_level: updateStaffDto.access_level || staff.access_level,
       });
 
       return await this.staffRepository.save(staff);
@@ -149,14 +169,41 @@ export class BusinessesService {
     }
   }
 
-  async getStaffList(user: any, page: number = 1, limit: number = 10) {
+  async getStaffList(
+    user: any,
+    page: number = 1,
+    limit: number = 10,
+    role?: string,
+    access_level?: string,
+  ) {
     if (user.entityType !== 'Business') throw new UnauthorizedException('Only businesses can list staff');
+
+    const validRoles = ['Vet', 'Assistant', 'Manager', 'Receptionist', 'Staff'];
+    const validAccessLevels = ['Full', 'Editor', 'View', 'Staff'];
+
     try {
-      const [result, total] = await this.staffRepository.findAndCount({
-        where: { business: { id: user.id }, status: Status.Active },
-        take: limit,
-        skip: (page - 1) * limit,
-      });
+      let query = this.staffRepository
+        .createQueryBuilder('staff')
+        .where('staff.business_id = :businessId', { businessId: user.id })
+        .andWhere('staff.status = :status', { status: Status.Active });
+
+      if (role && validRoles.includes(role)) {
+        query = query.andWhere('staff.role_name = :role', { role });
+      } else if (role) {
+        throw new BadRequestException(`Invalid role. Must be one of: ${validRoles.join(', ')}`);
+      }
+
+      if (access_level && validAccessLevels.includes(access_level)) {
+        query = query.andWhere('staff.access_level = :accessLevel', { accessLevel: access_level });
+      } else if (access_level) {
+        throw new BadRequestException(`Invalid access level. Must be one of: ${validAccessLevels.join(', ')}`);
+      }
+
+      const [result, total] = await query
+        .take(limit)
+        .skip((page - 1) * limit)
+        .getManyAndCount();
+
       return {
         data: result,
         total,
@@ -170,7 +217,11 @@ export class BusinessesService {
 
   async addPet(user: any, createBusinessPetMappingDto: CreateBusinessPetMappingDto) {
     if (user.entityType !== 'Business' && user.entityType !== 'Staff') throw new UnauthorizedException('You are not authorized to add pets');
-    const business = await this.businessRepository.findOne({ where: { id: user.id, status: Status.Active } });
+    const business = await this.businessRepository.findOne({
+      where: user.entityType === 'Business'
+        ? { id: user.id, status: Status.Active }
+        : { id: user.business_id, status: Status.Active },
+    });
     if (!business) throw new NotFoundException('Business not found');
 
     const pet = await this.petRepository.findOne({
@@ -182,13 +233,13 @@ export class BusinessesService {
     let staff: Staff | null = null;
     if (createBusinessPetMappingDto.staff_id) {
       staff = await this.staffRepository.findOne({
-        where: { id: createBusinessPetMappingDto.staff_id, status: Status.Active, business: { id: user.id } },
+        where: { id: createBusinessPetMappingDto.staff_id, status: Status.Active, business: { id: business.id } },
       });
       if (!staff) throw new NotFoundException('Staff not found or not associated with this business');
     }
 
     const existingMapping = await this.businessPetMappingRepository.findOne({
-      where: { business: { id: user.id }, pet: { id: createBusinessPetMappingDto.pet_id } },
+      where: { business: { id: business.id }, pet: { id: createBusinessPetMappingDto.pet_id } },
     });
     if (existingMapping) throw new BadRequestException('This pet is already associated with the business');
 
@@ -208,17 +259,48 @@ export class BusinessesService {
   }
 
   async getBusinessPets(user: any, page: number = 1, limit: number = 10) {
-    if (user.entityType !== 'Business' && user.entityType !== 'Staff') throw new UnauthorizedException('You are not authorized to add pets');
-    const business = await this.businessRepository.findOne({ where: { id: user.id, status: Status.Active } });
+    if (user.entityType !== 'Business' && user.entityType !== 'Staff') throw new UnauthorizedException('You are not authorized to view pets');
+
+    let businessId: string;
+    if (user.entityType === 'Business') {
+      businessId = user.id;
+    } else if (user.entityType === 'Staff') {
+      const staff = await this.staffRepository.findOne({
+        where: { id: user.id, status: Status.Active },
+        relations: ['business'],
+      });
+      if (!staff || !staff.business) throw new NotFoundException('Staff or associated business not found');
+      businessId = staff.business.id;
+    } else {
+      throw new UnauthorizedException('Invalid user entity type');
+    }
+
+    const business = await this.businessRepository.findOne({
+      where: { id: businessId, status: Status.Active },
+    });
     if (!business) throw new NotFoundException('Business not found');
 
     try {
-      const [mappings, total] = await this.businessPetMappingRepository.findAndCount({
-        where: { business: { id: user.id } },
-        relations: ['pet', 'pet.breed_species', 'pet.breed', 'pet.human_owner', 'pet.profilePictureDocument', 'staff'],
-        take: limit,
-        skip: (page - 1) * limit,
-      });
+      let query = this.businessPetMappingRepository
+        .createQueryBuilder('mapping')
+        .leftJoinAndSelect('mapping.pet', 'pet')
+        .leftJoinAndSelect('pet.breed_species', 'breed_species')
+        .leftJoinAndSelect('pet.breed', 'breed')
+        .leftJoinAndSelect('pet.human_owner', 'human_owner')
+        .leftJoinAndSelect('pet.profilePictureDocument', 'profilePictureDocument')
+        .leftJoinAndSelect('mapping.staff', 'staff')
+        .where('mapping.business_id = :businessId', { businessId });
+
+      if (user.entityType === 'Staff') {
+        query = query.andWhere('mapping.staff_id = :staffId', { staffId: user.id });
+      }
+
+      query = query.orderBy('mapping.staff_id', 'ASC', 'NULLS LAST');
+
+      const [mappings, total] = await query
+        .take(limit)
+        .skip((page - 1) * limit)
+        .getManyAndCount();
 
       return {
         data: mappings.map((mapping) => ({
