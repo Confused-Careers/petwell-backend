@@ -30,8 +30,12 @@ export class AuthController {
   }
 
   @Post('register/business')
-  async registerBusiness(@Body() dto: RegisterBusinessDto) {
-    return this.authService.registerBusiness(dto);
+  @UseInterceptors(FileInterceptor('profile_picture'))
+  async registerBusiness(
+    @Body() dto: RegisterBusinessDto,
+    @UploadedFile() file?: Express.Multer.File,
+  ) {
+    return this.authService.registerBusiness(dto, file);
   }
 
   @Post('register/human-owner-with-pet')

@@ -4,17 +4,25 @@ import { config } from 'dotenv';
 import { ValidationPipe } from '@nestjs/common';
 config();
 
-
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+  // ✅ Enable CORS for Vite dev server ports (5173, 5174)
+  app.enableCors({
+    origin: ['http://localhost:5173', 'http://localhost:5174'],
+    credentials: true, // if using cookies or Authorization headers
+  });
+
   app.setGlobalPrefix('api/v1');
+
   app.useGlobalPipes(
     new ValidationPipe({
-      whitelist: true,         // Strips properties that are not in the DTO
-      forbidNonWhitelisted: true, // Throws error if unknown properties are present
-      transform: true,         // Automatically transforms payloads to DTO instances
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
     }),
   );
+
   await app.listen(process.env.PORT ?? 5000);
 }
 bootstrap();

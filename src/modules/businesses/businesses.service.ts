@@ -76,7 +76,7 @@ export class BusinessesService {
       socials: updateBusinessDto.socials || business.socials,
       description: updateBusinessDto.description || business.description,
       address: updateBusinessDto.address || business.address,
-      
+      contact_preference: updateBusinessDto.contact_preference || business.contact_preference,
     });
 
     try {
@@ -169,7 +169,7 @@ export class BusinessesService {
   }
 
   async addPet(user: any, createBusinessPetMappingDto: CreateBusinessPetMappingDto) {
-    if (user.entityType !== 'Business') throw new UnauthorizedException('Only businesses can add pets');
+    if (user.entityType !== 'Business' && user.entityType !== 'Staff') throw new UnauthorizedException('You are not authorized to add pets');
     const business = await this.businessRepository.findOne({ where: { id: user.id, status: Status.Active } });
     if (!business) throw new NotFoundException('Business not found');
 
@@ -208,7 +208,7 @@ export class BusinessesService {
   }
 
   async getBusinessPets(user: any, page: number = 1, limit: number = 10) {
-    if (user.entityType !== 'Business') throw new UnauthorizedException('Only businesses can access their pet mappings');
+    if (user.entityType !== 'Business' && user.entityType !== 'Staff') throw new UnauthorizedException('You are not authorized to add pets');
     const business = await this.businessRepository.findOne({ where: { id: user.id, status: Status.Active } });
     if (!business) throw new NotFoundException('Business not found');
 

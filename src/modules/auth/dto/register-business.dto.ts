@@ -1,4 +1,4 @@
-import { IsEmail, IsString, MinLength, IsUrl, IsOptional } from 'class-validator';
+import { IsEmail, IsString, MinLength, IsUrl, IsOptional, IsEnum } from 'class-validator';
 
 export class RegisterBusinessDto {
   @IsString()
@@ -36,4 +36,16 @@ export class RegisterBusinessDto {
   @IsUrl()
   @IsOptional()
   x: string;
+
+  @IsOptional()
+  @IsEnum(['Phone', 'Email'])
+  contact_preference?: 'Phone' | 'Email';
+
+  @IsOptional()
+  @IsString()
+  document_name?: string;
+
+  @IsOptional()
+  @IsString()
+  file_type?: string;
 }

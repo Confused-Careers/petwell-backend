@@ -81,7 +81,7 @@ export class AuthService {
       await this.auditLogRepository.save(
         this.auditLogRepository.create({
           entity_type: entityType || 'Unknown',
-          entity_id: 'unknown',
+          entity_id: null,
           action: 'Login',
           status: 'Failed',
           ip_address: ipAddress,
@@ -266,8 +266,8 @@ export class AuthService {
     }
   }
 
-  async registerBusiness(dto: RegisterBusinessDto) {
-    const { business_name, email, phone, password, description, website, instagram, facebook, x } = dto;
+  async registerBusiness(dto: RegisterBusinessDto, file?: Express.Multer.File) {
+    const { business_name, email, phone, password, description, website, instagram, facebook, x, contact_preference, document_name, file_type } = dto;
 
     const emailExists =
       (await this.humanOwnerRepository.findOne({ where: { email } })) ||
@@ -302,6 +302,7 @@ export class AuthService {
         description,
         website,
         socials,
+        contact_preference,
         previous_passwords: JSON.stringify([hashedPassword]),
         otp_code: otpCode,
         otp_sent_at: otpSentAt,
@@ -309,8 +310,25 @@ export class AuthService {
         otp_type: 'Registration',
       });
 
+      const savedBusiness = await queryRunner.manager.save(business);
+
+      if (file) {
+        const uploadDocumentDto: UploadDocumentDto = {
+          document_name: document_name || `profile-picture-${savedBusiness.id}`,
+          document_type: DocumentType.ProfilePicture,
+          file_type: (file_type as UploadDocumentDto['file_type']) || (['PDF', 'JPG', 'PNG', 'DOC', 'JPEG'].includes(file.mimetype?.split('/')[1]?.toUpperCase() || '') 
+            ? file.mimetype?.split('/')[1]?.toUpperCase() as UploadDocumentDto['file_type'] 
+            : undefined),
+          description: `Profile picture for business ${business_name}`,
+        };
+
+        const user = { id: savedBusiness.id, entityType: 'Business' as const };
+        const document = await this.documentsService.uploadDocument(uploadDocumentDto, file, user, null, queryRunner.manager);
+        business.profile_picture_document_id = document.id;
+        await queryRunner.manager.save(business);
+      }
+
       await this.nodeMailerService.sendOtpEmail(email, otpCode);
-      await queryRunner.manager.save(business);
       await queryRunner.commitTransaction();
 
       return { message: 'OTP sent to email' };

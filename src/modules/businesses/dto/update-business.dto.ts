@@ -1,4 +1,4 @@
-import { IsOptional, IsString, IsEmail, IsObject, ValidateIf } from 'class-validator';
+import { IsOptional, IsString, IsEmail, IsObject, ValidateIf, IsEnum } from 'class-validator';
 import { Transform } from 'class-transformer';
 
 export class UpdateBusinessDto {
@@ -19,6 +19,10 @@ export class UpdateBusinessDto {
   address?: string;
 
   @IsOptional()
+  @IsEnum(['Phone', 'Email'])
+  contact_preference?: 'Phone' | 'Email';
+
+  @IsOptional()
   @IsString()
   website?: string;
 
@@ -29,7 +33,7 @@ export class UpdateBusinessDto {
         const parsed = JSON.parse(value);
         return typeof parsed === 'object' && parsed !== null ? parsed : undefined;
       } catch (e) {
-        return undefined; 
+        return undefined;
       }
     }
     return undefined;

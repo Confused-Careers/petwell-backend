@@ -8,7 +8,7 @@ export class AuditLog {
   @Column()
   entity_type: string;
 
-  @Column('uuid')
+  @Column({ nullable: true })
   entity_id: string;
 
   @Column({ type: 'enum', enum: ['Create', 'Update', 'Delete', 'Login', 'Logout', 'Parse'] })
