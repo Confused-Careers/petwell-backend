@@ -15,6 +15,9 @@ import { Express } from 'express';
 import { DocumentType } from '../../shared/enums/document-type.enum';
 import * as bcrypt from 'bcrypt';
 import { NodeMailerService } from '@shared/services/nodemailer.service';
+import { Team } from '../teams/entities/team.entity';
+import { HumanOwner } from '../human-owners/entities/human-owner.entity';
+
 
 @Injectable()
 export class BusinessesService {
@@ -27,6 +30,10 @@ export class BusinessesService {
     private petRepository: Repository<PetProfile>,
     @InjectRepository(BusinessPetMapping)
     private businessPetMappingRepository: Repository<BusinessPetMapping>,
+    @InjectRepository(Team)
+    private teamRepository: Repository<Team>,
+    @InjectRepository(HumanOwner)
+    private humanOwnerRepository: Repository<HumanOwner>,
     private documentsService: DocumentsService,
     private nodeMailerService: NodeMailerService,
   ) {}
@@ -239,16 +246,44 @@ export class BusinessesService {
     }
 
     const existingMapping = await this.businessPetMappingRepository.findOne({
-      where: { business: { id: business.id }, pet: { id: createBusinessPetMappingDto.pet_id } },
+      where: { 
+        business: { id: business.id }, 
+        pet: { id: createBusinessPetMappingDto.pet_id },
+        status: Status.Active,
+      },
     });
     if (existingMapping) throw new BadRequestException('This pet is already associated with the business');
+
+    // Check if Team exists, create if not
+    const humanOwner = await this.humanOwnerRepository.findOne({
+      where: { id: pet.human_owner.id, status: Status.Active },
+    });
+    if (!humanOwner) throw new NotFoundException('Human owner not found');
+
+    let team = await this.teamRepository.findOne({
+      where: {
+        human_owner: { id: humanOwner.id },
+        pet: { id: createBusinessPetMappingDto.pet_id },
+        business: { id: business.id },
+        status: Status.Active,
+      },
+    });
+
+    if (!team) {
+      team = this.teamRepository.create({
+        human_owner: humanOwner,
+        pet,
+        business,
+      });
+      await this.teamRepository.save(team);
+    }
 
     try {
       const mapping = this.businessPetMappingRepository.create({
         business,
         pet,
         staff,
-        title: createBusinessPetMappingDto.title,
+        title: createBusinessPetMappingDto.title || `Auto-generated mapping for ${pet.pet_name} with ${business.business_name}`,
         note: createBusinessPetMappingDto.note,
       });
 

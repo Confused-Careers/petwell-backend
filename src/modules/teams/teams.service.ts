@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { Injectable, NotFoundException, UnauthorizedException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Like, In } from 'typeorm';
 import { Team } from './entities/team.entity';
@@ -9,6 +9,7 @@ import { Staff } from '../staff/entities/staff.entity';
 import { CreateTeamDto } from './dto/create-team.dto';
 import { UpdateTeamDto } from './dto/update-team.dto';
 import { Status } from '../../shared/enums/status.enum';
+import { BusinessPetMapping } from '../businesses/entities/business-pet-mapping.entity';
 
 @Injectable()
 export class TeamsService {
@@ -23,6 +24,8 @@ export class TeamsService {
     private businessRepository: Repository<Business>,
     @InjectRepository(Staff)
     private staffRepository: Repository<Staff>,
+    @InjectRepository(BusinessPetMapping)
+    private businessPetMappingRepository: Repository<BusinessPetMapping>,
   ) {}
 
   async create(createTeamDto: CreateTeamDto, user: any) {
@@ -39,6 +42,36 @@ export class TeamsService {
       where: { id: createTeamDto.business_id, status: Status.Active },
     });
     if (!business) throw new NotFoundException('Business not found');
+
+    // Check if team already exists
+    const existingTeam = await this.teamRepository.findOne({
+      where: {
+        human_owner: { id: user.id },
+        pet: { id: createTeamDto.pet_id },
+        business: { id: createTeamDto.business_id },
+        status: Status.Active,
+      },
+    });
+    if (existingTeam) throw new BadRequestException('Team already exists for this human owner, pet, and business');
+
+    // Check if BusinessPetMapping exists, create if not
+    let businessPetMapping = await this.businessPetMappingRepository.findOne({
+      where: {
+        business: { id: createTeamDto.business_id },
+        pet: { id: createTeamDto.pet_id },
+        status: Status.Active,
+      },
+    });
+
+    if (!businessPetMapping) {
+      businessPetMapping = this.businessPetMappingRepository.create({
+        business,
+        pet,
+        title: `Auto-generated mapping for ${pet.pet_name} with ${business.business_name}`,
+        status: Status.Active,
+      });
+      await this.businessPetMappingRepository.save(businessPetMapping);
+    }
 
     const team = this.teamRepository.create({
       human_owner: humanOwner,
@@ -139,6 +172,25 @@ export class TeamsService {
       });
       if (!pet) throw new NotFoundException('Pet not found or not owned by the user');
       team.pet = pet;
+
+      // Update or create BusinessPetMapping if pet is changed
+      let businessPetMapping = await this.businessPetMappingRepository.findOne({
+        where: {
+          business: { id: team.business.id },
+          pet: { id: updateTeamDto.pet_id },
+          status: Status.Active,
+        },
+      });
+
+      if (!businessPetMapping) {
+        businessPetMapping = this.businessPetMappingRepository.create({
+          business: team.business,
+          pet,
+          title: `Auto-generated mapping for ${pet.pet_name} with ${team.business.business_name}`,
+          status: Status.Active,
+        });
+        await this.businessPetMappingRepository.save(businessPetMapping);
+      }
     }
 
     if (updateTeamDto.business_id) {
@@ -147,6 +199,25 @@ export class TeamsService {
       });
       if (!business) throw new NotFoundException('Business not found');
       team.business = business;
+
+      // Update or create BusinessPetMapping if business is changed
+      let businessPetMapping = await this.businessPetMappingRepository.findOne({
+        where: {
+          business: { id: updateTeamDto.business_id },
+          pet: { id: team.pet.id },
+          status: Status.Active,
+        },
+      });
+
+      if (!businessPetMapping) {
+        businessPetMapping = this.businessPetMappingRepository.create({
+          business,
+          pet: team.pet,
+          title: `Auto-generated mapping for ${team.pet.pet_name} with ${business.business_name}`,
+          status: Status.Active,
+        });
+        await this.businessPetMappingRepository.save(businessPetMapping);
+      }
     }
 
     return this.teamRepository.save(team);
