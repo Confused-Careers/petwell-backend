@@ -2,7 +2,7 @@ import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateCol
 import { Business } from './business.entity';
 import { PetProfile } from '../../pets/entities/pet-profile.entity';
 import { Staff } from '../../staff/entities/staff.entity';
-import { Status } from '@shared/enums/status.enum';
+import { Status } from '../../../shared/enums/status.enum';
 
 @Entity('business_pet_mapping')
 export class BusinessPetMapping {
