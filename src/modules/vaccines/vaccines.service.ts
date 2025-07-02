@@ -229,13 +229,22 @@ export class VaccinesService {
       throw new BadRequestException('Unsupported file type. Only PDF, JPG, JPEG, and PNG are allowed');
     }
 
-    const prompt = `Extract the following details from the provided vaccine document (text or image). If multiple vaccines are listed, provide details for only the first one:
+    const prompt = `Extract the following details from the provided vaccine document (text or image). If multiple vaccines are listed, provide details for all vaccines in an array. For each vaccine, extract:
+    - Pet name
     - Vaccine name
     - Date administered (format: YYYY-MM-DD)
     - Expiry date (format: YYYY-MM-DD)
     - Administered by (doctor's name)
     Return the response in JSON format, without markdown code fences. If a field cannot be extracted, return null for that field. Example:
-    {"vaccine_name":"Rabies","date_administered":"2023-01-15","expiry_date":"2024-01-15","administered_by":"Dr. John Doe"}`;
+    [
+      {
+        "pet_name": "Max",
+        "vaccine_name": "Rabies",
+        "date_administered": "2023-01-15",
+        "expiry_date": "2024-01-15",
+        "administered_by": "Dr. John Doe"
+      }
+    ]`;
 
     let extractedData;
     if (fileType === 'pdf') {
@@ -283,6 +292,17 @@ export class VaccinesService {
       extractedData = JSON.parse(responseText.replace(/```json\n|```/g, '').trim());
     }
 
+    // Validate pet name
+    if (!Array.isArray(extractedData) || !extractedData[0]?.pet_name || extractedData[0].pet_name !== pet.pet_name) {
+      throw new BadRequestException('Pet name in document does not match pet records');
+    }
+
+    // Check for multiple vaccines
+    let warning = null;
+    if (Array.isArray(extractedData) && extractedData.length > 1) {
+      warning = 'Multiple vaccines detected. Only the first vaccine will be considered.';
+    }
+
     const uploadDocumentDto = {
       document_name: `Vaccine-Document-${petId}-${Date.now()}`,
       document_type: DocumentType.Medical,
@@ -301,7 +321,7 @@ export class VaccinesService {
         changes: {
           ...uploadDocumentDto,
           pet_id: petId,
-          extracted_data: extractedData,
+          extracted_data: extractedData[0], // Store only first vaccine in audit log
           human_owner_id: pet.human_owner.id,
           business_id: user.entityType === 'Business' ? user.id : user.entityType === 'Staff' ? (await this.staffRepository.findOne({ where: { id: user.id }, relations: ['business'] }))?.business.id : undefined,
           staff_id: user.entityType === 'Staff' ? user.id : undefined,
@@ -312,12 +332,15 @@ export class VaccinesService {
       }),
     );
 
+    // Return only the first vaccine's details
+    const firstVaccine = Array.isArray(extractedData) ? extractedData[0] : extractedData;
     return {
       document_id: document.id,
-      vaccine_name: extractedData.vaccine_name || null,
-      date_administered: extractedData.date_administered || null,
-      expiry_date: extractedData.expiry_date || null,
-      administered_by: extractedData.administered_by || null,
+      warning: warning,
+      vaccine_name: firstVaccine.vaccine_name || null,
+      date_administered: firstVaccine.date_administered || null,
+      expiry_date: firstVaccine.expiry_date || null,
+      administered_by: firstVaccine.administered_by || null,
     };
   }
 

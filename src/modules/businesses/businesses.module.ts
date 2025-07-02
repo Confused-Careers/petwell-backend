@@ -8,9 +8,11 @@ import { DocumentsModule } from '../documents/documents.module';
 import { PetProfile } from '../pets/entities/pet-profile.entity';
 import { BusinessPetMapping } from './entities/business-pet-mapping.entity';
 import { NodeMailerService } from '@shared/services/nodemailer.service';
+import { Team } from '../teams/entities/team.entity';
+import { HumanOwner } from '../human-owners/entities/human-owner.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Business, Staff, PetProfile, BusinessPetMapping]), DocumentsModule],
+  imports: [TypeOrmModule.forFeature([Business, Staff, PetProfile, BusinessPetMapping, Team, HumanOwner]), DocumentsModule],
   controllers: [BusinessesController],
   providers: [BusinessesService, NodeMailerService],
   exports: [BusinessesService],
