@@ -435,6 +435,7 @@ export class AuthService {
       const savedPet = await queryRunner.manager.save(pet);
 
       // Step 3: Upload Document within transaction
+      if(file){
       const uploadDocumentDto: UploadDocumentDto = {
         document_name,
         document_type: DocumentType.ProfilePicture,
@@ -449,6 +450,7 @@ export class AuthService {
       // Step 4: Update Pet with document ID
       savedPet.profile_picture_document_id = document.id;
       await queryRunner.manager.save(savedPet);
+    }
 
       // Step 5: Send OTP
       await this.nodeMailerService.sendOtpEmail(email, otpCode);

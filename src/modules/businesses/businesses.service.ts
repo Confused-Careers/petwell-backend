@@ -15,6 +15,10 @@ import { Express } from 'express';
 import { DocumentType } from '../../shared/enums/document-type.enum';
 import * as bcrypt from 'bcrypt';
 import { NodeMailerService } from '@shared/services/nodemailer.service';
+import { HumanOwner } from '@modules/human-owners/entities/human-owner.entity';
+import { BreedSpecies } from '@modules/pets/entities/breed-species.entity';
+import { Breed } from '@modules/pets/entities/breed.entity';
+import { Document } from '@modules/documents/entities/document.entity';
 
 @Injectable()
 export class BusinessesService {
@@ -29,7 +33,7 @@ export class BusinessesService {
     private businessPetMappingRepository: Repository<BusinessPetMapping>,
     private documentsService: DocumentsService,
     private nodeMailerService: NodeMailerService,
-  ) {}
+  ) { }
 
   async getProfile(user: any) {
     if (user.entityType !== 'Business') throw new UnauthorizedException('Only businesses can access their profile');
@@ -224,10 +228,20 @@ export class BusinessesService {
     });
     if (!business) throw new NotFoundException('Business not found');
 
-    const pet = await this.petRepository.findOne({
-      where: { id: createBusinessPetMappingDto.pet_id, status: Status.Active },
-      relations: ['breed_species', 'breed', 'human_owner', 'profilePictureDocument'],
-    });
+
+    let pet = null;
+    if (createBusinessPetMappingDto['pet_id']) {
+      pet = await this.petRepository.findOne({
+        where: { id: createBusinessPetMappingDto.pet_id, status: Status.Active },
+        relations: ['breed_species', 'breed', 'human_owner', 'profilePictureDocument'],
+      });
+    } else {
+      pet = await this.petRepository.findOne({
+        select: { pet_name: true, id: true },
+        where: { qr_code_id: createBusinessPetMappingDto.qr_code_id, status: Status.Active },
+        relations: ['breed_species', 'breed', 'human_owner', 'profilePictureDocument'],
+      });
+    }
     if (!pet) throw new NotFoundException('Pet not found');
 
     let staff: Staff | null = null;
@@ -239,7 +253,7 @@ export class BusinessesService {
     }
 
     const existingMapping = await this.businessPetMappingRepository.findOne({
-      where: { business: { id: business.id }, pet: { id: createBusinessPetMappingDto.pet_id } },
+      where: { business: { id: business.id }, pet: { id: pet.id } },
     });
     if (existingMapping) throw new BadRequestException('This pet is already associated with the business');
 
@@ -247,12 +261,12 @@ export class BusinessesService {
       const mapping = this.businessPetMappingRepository.create({
         business,
         pet,
-        staff,
-        title: createBusinessPetMappingDto.title,
-        note: createBusinessPetMappingDto.note,
+        staff: staff || null,
+        title: createBusinessPetMappingDto.title || null,
+        note: createBusinessPetMappingDto.note || null,
       });
-
-      return await this.businessPetMappingRepository.save(mapping);
+      await this.businessPetMappingRepository.save(mapping)
+      return pet;
     } catch (error) {
       throw new BadRequestException(`Failed to create pet mapping: ${error.message}`);
     }
@@ -283,39 +297,59 @@ export class BusinessesService {
     try {
       let query = this.businessPetMappingRepository
         .createQueryBuilder('mapping')
-        .leftJoinAndSelect('mapping.pet', 'pet')
-        .leftJoinAndSelect('pet.breed_species', 'breed_species')
-        .leftJoinAndSelect('pet.breed', 'breed')
-        .leftJoinAndSelect('pet.human_owner', 'human_owner')
-        .leftJoinAndSelect('pet.profilePictureDocument', 'profilePictureDocument')
-        .leftJoinAndSelect('mapping.staff', 'staff')
-        .where('mapping.business_id = :businessId', { businessId });
+        .select([
+          "mapping.business_id AS business_id",
+"mapping.created_at AS created_at",
+"mapping.map_id AS map_id",
+"mapping.note AS note",
+"mapping.pet_id AS pet_id",
+"mapping.staff_id AS staff_id",
+"mapping.status AS status",
+"mapping.title AS title",
+"mapping.updated_at AS updated_at",
+"pet.pet_name AS pet_name",
+"breed.breed_name AS breed_name",
+"staff.staff_name AS staff_name",
+"human_owner.human_owner_name AS human_owner_name",
+"breed_species.species_name AS species_name",
+"profilePictureDocument.document_url AS document_url",
 
+
+        ])
+        .innerJoin(PetProfile,'pet','mapping.pet_id=pet.id')
+        .leftJoin(Staff,'staff','mapping.staff_id=staff.id')
+        .innerJoin(HumanOwner,'human_owner','pet.humanOwnerId=human_owner.id')
+        .leftJoin(BreedSpecies,'breed_species','pet.breedSpeciesId=breed_species.id')
+        .leftJoin(Breed,'breed','pet.breedSpeciesId=breed.id')
+        .leftJoin(Document,'profilePictureDocument','pet.profile_picture_document_id=profilePictureDocument.id')
+        .where('mapping.business_id = :businessId AND mapping.status=:status', { businessId,status:Status.Active });
+return query.getRawMany();
       if (user.entityType === 'Staff') {
         query = query.andWhere('mapping.staff_id = :staffId', { staffId: user.id });
       }
 
       query = query.orderBy('mapping.staff_id', 'ASC', 'NULLS LAST');
+      console.log(query.getQueryAndParameters())
 
       const [mappings, total] = await query
         .take(limit)
         .skip((page - 1) * limit)
         .getManyAndCount();
 
-      return {
-        data: mappings.map((mapping) => ({
-          map_id: mapping.map_id,
-          title: mapping.title,
-          note: mapping.note,
-          created_at: mapping.created_at,
-          updated_at: mapping.updated_at,
-          pet: mapping.pet,
-          staff: mapping.staff ? { id: mapping.staff.id, staff_name: mapping.staff.staff_name } : null,
-        })),
-        total,
-        page,
-        limit,
-      };
+      // return {
+      //   data: mappings.map((mapping) => ({
+      //     map_id: mapping.map_id,
+      //     title: mapping.title,
+      //     note: mapping.note,
+      //     created_at: mapping.created_at,
+      //     updated_at: mapping.updated_at,
+      //     pet: mapping.pet,
+      //     staff: mapping.staff ? { id: mapping.staff.id, staff_name: mapping.staff.staff_name } : null,
+      //   })),
+      //   total,
+      //   page,
+      //   limit,
+      // };
     } catch (error) {
       throw new BadRequestException(`Failed to retrieve pet mappings: ${error.message}`);
     }

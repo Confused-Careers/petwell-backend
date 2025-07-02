@@ -1,15 +1,19 @@
 import { IsString, IsNotEmpty, IsOptional, IsUUID } from 'class-validator';
 
 export class CreateBusinessPetMappingDto {
-  @IsNotEmpty()
+  @IsOptional()
   @IsUUID()
-  pet_id: string;
+  pet_id?: string;
+
+  @IsOptional()
+  @IsString()
+  qr_code_id?:string;
 
   @IsOptional()
   @IsUUID()
   staff_id?: string;
 
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
   title: string;
 

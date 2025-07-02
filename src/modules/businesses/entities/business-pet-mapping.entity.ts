@@ -24,7 +24,7 @@ export class BusinessPetMapping {
   @Column({ type: 'text', nullable: true })
   note: string;
 
-  @Column({ type: 'varchar', length: 255, nullable: false })
+  @Column({ type: 'varchar', length: 255, nullable: true })
   title: string;
 
   @CreateDateColumn({ type: 'timestamp' })

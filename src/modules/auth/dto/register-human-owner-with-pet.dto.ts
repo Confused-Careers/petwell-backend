@@ -103,12 +103,12 @@ export class RegisterHumanOwnerWithPetDto {
   @Transform(({ value }) => (value && typeof value === 'string' ? value.trim() : value))
   pet_notes?: string;
 
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
   @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   document_name: string;
 
-  @IsNotEmpty()
+  @IsOptional()
   @IsEnum(['PDF', 'JPG', 'PNG', 'JPEG'])
   @Transform(({ value }) => (typeof value === 'string' ? value.trim().toUpperCase() : value))
   file_type: 'PDF' | 'JPG' | 'PNG' | 'JPEG';

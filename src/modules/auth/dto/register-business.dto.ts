@@ -38,8 +38,8 @@ export class RegisterBusinessDto {
   x: string;
 
   @IsOptional()
-  @IsEnum(['Phone', 'Email'])
-  contact_preference?: 'Phone' | 'Email';
+  @IsEnum(['Phone Call', 'Email','Phone Call,Email'])
+  contact_preference?: 'Phone Call' | 'Email' | 'Phone Call,Email';
 
   @IsOptional()
   @IsString()

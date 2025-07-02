@@ -22,8 +22,8 @@ export class Business {
   @Column({ nullable: true })
   phone: string;
 
-  @Column({ type: 'enum', enum: ['Phone', 'Email'], nullable: true })
-  contact_preference: 'Phone' | 'Email';
+  @Column({ type: 'enum', enum: ['Phone Call', 'Email','Phone Call,Email'], nullable: true })
+  contact_preference: 'Phone Call' | 'Email' | 'Phone Call,Email';
 
   @Column({ nullable: true })
   address: string;

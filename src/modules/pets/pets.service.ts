@@ -76,13 +76,14 @@ export class PetsService {
         throw new BadRequestException('Invalid breed ID or breed does not belong to the specified species');
       }
     }
-
+    let code=await this.getNextPetCode();
     const petData = {
       ...createPetDto,
       dob: createPetDto.dob ? new Date(createPetDto.dob) : undefined,
       human_owner: humanOwner,
       breed_species: breedSpecies,
       breed,
+      qr_code_id:code
     };
 
     const pet = this.petRepository.create(petData as unknown as Partial<PetProfile>);
@@ -768,4 +769,45 @@ export class PetsService {
 
     return { message: 'Document deleted successfully' };
   }
+
+  async getNextPetCode(): Promise<string> {
+  let latestPet=await this.petRepository.find({order:{id:'DESC'},take:1});
+  let code='';
+  if(latestPet.length){
+    code=latestPet[0]?.qr_code_id;
+  }else{
+return 'AAAAA';
+  }
+  const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  const base = charset.length;
+
+  if (code.length !== 5) {
+    throw new Error('Code must be 5 characters long');
+  }
+
+  let chars = code.split('');
+  let i = 4;
+
+  while (i >= 0) {
+    const currentIndex = charset.indexOf(chars[i]);
+
+    if (currentIndex === -1) {
+      throw new Error(`Invalid character "${chars[i]}" in code`);
+    }
+
+    if (currentIndex < base - 1) {
+      // Increment and stop
+      chars[i] = charset[currentIndex + 1];
+      break;
+    } else {
+      // Carry over
+      chars[i] = charset[0];
+      i--;
+    }
+  }
+
+  // If all characters overflowed (e.g., '99999'), it wraps to 'AAAAA'
+  return chars.join('');
+}
+
 }
