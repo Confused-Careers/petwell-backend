@@ -293,12 +293,12 @@ export class VaccinesService {
     }
 
     // Validate pet name
+    let warning = null;
     if (!Array.isArray(extractedData) || !extractedData[0]?.pet_name || extractedData[0].pet_name !== pet.pet_name) {
-      throw new BadRequestException('Pet name in document does not match pet records');
+      warning = 'Pet name in document does not match pet records';
     }
 
     // Check for multiple vaccines
-    let warning = null;
     if (Array.isArray(extractedData) && extractedData.length > 1) {
       warning = 'Multiple vaccines detected. Only the first vaccine will be considered.';
     }
@@ -334,6 +334,7 @@ export class VaccinesService {
 
     // Return only the first vaccine's details
     const firstVaccine = Array.isArray(extractedData) ? extractedData[0] : extractedData;
+
     return {
       document_id: document.id,
       warning: warning,
