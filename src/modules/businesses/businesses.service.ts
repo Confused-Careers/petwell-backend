@@ -194,7 +194,7 @@ export class BusinessesService {
     try {
       let query = this.staffRepository
         .createQueryBuilder('staff')
-        .where('staff.business_id = :businessId', { businessId: user.id })
+        .where('staff.businessId = :businessId', { businessId: user.id })
         .andWhere('staff.status = :status', { status: Status.Active });
 
       if (role && validRoles.includes(role)) {
@@ -333,20 +333,20 @@ export class BusinessesService {
         .createQueryBuilder('mapping')
         .select([
           "mapping.business_id AS business_id",
-"mapping.created_at AS created_at",
-"mapping.map_id AS map_id",
-"mapping.note AS note",
-"mapping.pet_id AS pet_id",
-"mapping.staff_id AS staff_id",
-"mapping.status AS status",
-"mapping.title AS title",
-"mapping.updated_at AS updated_at",
-"pet.pet_name AS pet_name",
-"breed.breed_name AS breed_name",
-"staff.staff_name AS staff_name",
-"human_owner.human_owner_name AS human_owner_name",
-"breed_species.species_name AS species_name",
-"profilePictureDocument.document_url AS document_url",
+          "mapping.created_at AS created_at",
+          "mapping.map_id AS map_id",
+          "mapping.note AS note",
+          "mapping.pet_id AS pet_id",
+          "mapping.staff_id AS staff_id",
+          "mapping.status AS status",
+          "mapping.title AS title",
+          "mapping.updated_at AS updated_at",
+          "pet.pet_name AS pet_name",
+          "breed.breed_name AS breed_name",
+          "staff.staff_name AS staff_name",
+          "human_owner.human_owner_name AS human_owner_name",
+          "breed_species.species_name AS species_name",
+          "profilePictureDocument.document_url AS document_url",
 
 
         ])

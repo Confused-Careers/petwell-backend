@@ -76,14 +76,22 @@ export class PetsService {
         throw new BadRequestException('Invalid breed ID or breed does not belong to the specified species');
       }
     }
-    let code=await this.getNextPetCode();
+
+    let code: string;
+    try {
+      code = await this.getNextPetCode();
+    } catch (error) {
+      console.error('Error generating pet code:', error);
+      code = 'AAAAA'; // Fallback to default code
+    }
+
     const petData = {
       ...createPetDto,
       dob: createPetDto.dob ? new Date(createPetDto.dob) : undefined,
       human_owner: humanOwner,
       breed_species: breedSpecies,
       breed,
-      qr_code_id:code
+      qr_code_id: code,
     };
 
     const pet = this.petRepository.create(petData as unknown as Partial<PetProfile>);
@@ -375,7 +383,7 @@ export class PetsService {
     const pet = await this.checkPetAccess(petId, user);
 
     const fileType = file.mimetype.split('/')[1].toLowerCase();
-    if (!['pdf', 'jpg', 'jpeg', 'png'].includes(fileType)) {
+    if (!['pdf', 'jpg', 'jpeg,v', 'png'].includes(fileType)) {
       throw new BadRequestException('Unsupported file type. Only PDF, JPG, JPEG, and PNG are allowed');
     }
 
@@ -771,43 +779,47 @@ export class PetsService {
   }
 
   async getNextPetCode(): Promise<string> {
-  let latestPet=await this.petRepository.find({order:{id:'DESC'},take:1});
-  let code='';
-  if(latestPet.length){
-    code=latestPet[0]?.qr_code_id;
-  }else{
-return 'AAAAA';
-  }
-  const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  const base = charset.length;
+    const latestPet = await this.petRepository.find({
+      order: { id: 'DESC' },
+      take: 1,
+    });
 
-  if (code.length !== 5) {
-    throw new Error('Code must be 5 characters long');
-  }
-
-  let chars = code.split('');
-  let i = 4;
-
-  while (i >= 0) {
-    const currentIndex = charset.indexOf(chars[i]);
-
-    if (currentIndex === -1) {
-      throw new Error(`Invalid character "${chars[i]}" in code`);
+    let code = 'AAAAA'; // Default code for the first pet or invalid cases
+    if (latestPet && latestPet.length && latestPet[0]?.qr_code_id) {
+      code = latestPet[0].qr_code_id;
     }
 
-    if (currentIndex < base - 1) {
-      // Increment and stop
-      chars[i] = charset[currentIndex + 1];
-      break;
-    } else {
-      // Carry over
-      chars[i] = charset[0];
-      i--;
+    const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    const base = charset.length;
+
+    // Validate code length and content
+    if (code.length !== 5 || !code.split('').every(char => charset.includes(char))) {
+      console.warn(`Invalid qr_code_id found: "${code}". Defaulting to AAAAA.`);
+      return 'AAAAA'; // Fallback to default code if invalid
     }
+
+    const chars = code.split('');
+    let i = 4;
+
+    while (i >= 0) {
+      const currentIndex = charset.indexOf(chars[i]);
+
+      if (currentIndex < base - 1) {
+        // Increment and stop
+        chars[i] = charset[currentIndex + 1];
+        break;
+      } else {
+        // Carry over
+        chars[i] = charset[0];
+        i--;
+      }
+    }
+
+    // If all characters overflowed (e.g., '99999'), wrap to 'AAAAA'
+    if (i < 0) {
+      return 'AAAAA';
+    }
+
+    return chars.join('');
   }
-
-  // If all characters overflowed (e.g., '99999'), it wraps to 'AAAAA'
-  return chars.join('');
-}
-
 }

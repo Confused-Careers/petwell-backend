@@ -7,7 +7,7 @@ export class CreateBusinessPetMappingDto {
 
   @IsOptional()
   @IsString()
-  qr_code_id?:string;
+  qr_code_id?: string;
 
   @IsOptional()
   @IsUUID()

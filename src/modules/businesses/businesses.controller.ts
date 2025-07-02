@@ -43,7 +43,7 @@ export class BusinessesController {
     return this.businessesService.removeStaff(req.user, staffId);
   }
 
-  @Get('staff')
+  @Get('staff/get')
   async getStaffList(
     @Req() req,
     @Query('page') page: string = '1',
