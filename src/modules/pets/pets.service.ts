@@ -60,17 +60,19 @@ export class PetsService {
       throw new NotFoundException('Human owner not found');
     }
 
+    // Use "Other" breed species as fallback if breed_species_id is not provided
+    const breedSpeciesId = createPetDto.breed_species_id || '550e8400-e29b-41d4-a716-446655440003';
     const breedSpecies = await this.breedSpeciesRepository.findOne({
-      where: { id: createPetDto.breed_species_id },
+      where: { id: breedSpeciesId },
     });
     if (!breedSpecies) {
-      throw new NotFoundException('Invalid breed_species ID');
+      throw new NotFoundException(`Breed species with ID ${breedSpeciesId} not found`);
     }
 
     let breed: Breed | null = null;
     if (createPetDto.breed_id) {
       breed = await this.breedRepository.findOne({
-        where: { id: createPetDto.breed_id, breed_species: { id: createPetDto.breed_species_id } },
+        where: { id: createPetDto.breed_id, breed_species: { id: breedSpeciesId } },
       });
       if (!breed) {
         throw new BadRequestException('Invalid breed ID or breed does not belong to the specified species');
@@ -208,7 +210,7 @@ export class PetsService {
             const allowedTypes = ['PDF', 'JPG', 'PNG', 'DOC', 'JPEG'] as const;
             const type = file && typeof file.mimetype === 'string'
               ? file.mimetype.split('/')[1]?.toUpperCase()
-              : undefined;
+              : undefined rooting
             if (!type || !allowedTypes.includes(type as any)) {
               throw new BadRequestException('Unsupported file type');
             }
@@ -383,7 +385,7 @@ export class PetsService {
     const pet = await this.checkPetAccess(petId, user);
 
     const fileType = file.mimetype.split('/')[1].toLowerCase();
-    if (!['pdf', 'jpg', 'jpeg,v', 'png'].includes(fileType)) {
+    if (!['pdf', 'jpg', 'jpeg', 'png'].includes(fileType)) {
       throw new BadRequestException('Unsupported file type. Only PDF, JPG, JPEG, and PNG are allowed');
     }
 

@@ -89,9 +89,6 @@ export class VaccinesService {
     const { vaccine_name, date_administered, date_due, administered_by, pet_id } = createVaccineDto;
 
     const pet = await this.checkPetAccess(pet_id, user);
-    if (pet.breed_species.species_name !== 'Dog' && pet.breed_species.species_name !== 'Cat') {
-      throw new UnauthorizedException('Vaccines are only for dogs or cats');
-    }
 
     let vaccine_document_id: string | undefined;
     let business: Business | undefined;
@@ -219,9 +216,6 @@ export class VaccinesService {
     }
 
     const pet = await this.checkPetAccess(petId, user);
-    if (pet.breed_species.species_name !== 'Dog' && pet.breed_species.species_name !== 'Cat') {
-      throw new UnauthorizedException('Documents can only be parsed for dogs or cats');
-    }
 
     const allowedFileTypes = ['pdf', 'jpg', 'jpeg', 'png'];
     const fileType = file.mimetype.split('/')[1].toLowerCase();
@@ -392,7 +386,6 @@ export class VaccinesService {
         relations: ['human_owner', 'breed_species'],
       });
       if (!pet) throw new NotFoundException('Pet not found');
-      if (pet.breed_species.species_name !== 'Dog' && pet.breed_species.species_name !== 'Cat') throw new UnauthorizedException('Vaccines are only for dogs or cats');
       await this.checkPetAccess(updateVaccineDto.pet_id, user);
       vaccine.pet = pet;
       vaccine.human_owner = pet.human_owner;

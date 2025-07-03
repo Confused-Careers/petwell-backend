@@ -106,3 +106,7 @@ VALUES
   (uuid_generate_v4(), 'Siberian', '550e8400-e29b-41d4-a716-446655440002', 'Active', 'Affectionate and sturdy', NOW(), NOW()),
   (uuid_generate_v4(), 'Kurilian Bobtail', '550e8400-e29b-41d4-a716-446655440002', 'Active', 'Friendly and short-tailed', NOW(), NOW()),
   (uuid_generate_v4(), 'Other', '550e8400-e29b-41d4-a716-446655440002', 'Active', 'Friendly and short-tailed', NOW(), NOW());
+
+INSERT INTO breeds (id, breed_name, "breedSpeciesId", status, breed_description, created_at, updated_at)
+VALUES
+  (uuid_generate_v4(), 'Other', '550e8400-e29b-41d4-a716-446655440003', 'Active', 'Other', NOW(), NOW());

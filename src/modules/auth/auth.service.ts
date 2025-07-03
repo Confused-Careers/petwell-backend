@@ -1,6 +1,6 @@
 import { Injectable, UnauthorizedException, NotFoundException, HttpException, HttpStatus } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, FindOptionsWhere, DataSource, EntityManager } from 'typeorm';
+import { Repository, FindOptionsWhere, DataSource } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { HumanOwner } from '@modules/human-owners/entities/human-owner.entity';
