@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, UnauthorizedException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Not, Repository } from 'typeorm';
 import { Business } from './entities/business.entity';
 import { Staff } from '../staff/entities/staff.entity';
 import { PetProfile } from '../pets/entities/pet-profile.entity';
@@ -20,6 +20,7 @@ import { Breed } from '@modules/pets/entities/breed.entity';
 import { Document } from '@modules/documents/entities/document.entity';
 import { Team } from '../teams/entities/team.entity';
 import { HumanOwner } from '../human-owners/entities/human-owner.entity';
+import { Record } from '../records/entities/record.entity';
 
 @Injectable()
 export class BusinessesService {
@@ -36,6 +37,8 @@ export class BusinessesService {
     private teamRepository: Repository<Team>,
     @InjectRepository(HumanOwner)
     private humanOwnerRepository: Repository<HumanOwner>,
+    @InjectRepository(Record)
+    private recordRepository: Repository<Record>,
     private documentsService: DocumentsService,
     private nodeMailerService: NodeMailerService,
   ) {}
@@ -109,6 +112,23 @@ export class BusinessesService {
       throw new BadRequestException(`Invalid access_level. Must be one of: ${validAccessLevels.join(', ')}`);
     }
 
+    // Check for unique email across all repositories
+    const emailExists =
+      (await this.humanOwnerRepository.findOne({ where: { email: createStaffDto.email } })) ||
+      (await this.staffRepository.findOne({ where: { email: createStaffDto.email } })) ||
+      (await this.businessRepository.findOne({ where: { email: createStaffDto.email } }));
+    if (emailExists) {
+      throw new BadRequestException('Email already exists');
+    }
+
+    // Check for unique username across HumanOwner and Staff
+    const usernameExists =
+      (await this.humanOwnerRepository.findOne({ where: { username: createStaffDto.username } })) ||
+      (await this.staffRepository.findOne({ where: { username: createStaffDto.username } }));
+    if (usernameExists) {
+      throw new BadRequestException('Username already exists');
+    }
+
     try {
       const hashedPassword = await bcrypt.hash(createStaffDto.password, 10);
       const staff = this.staffRepository.create({
@@ -147,6 +167,17 @@ export class BusinessesService {
     }
     if (updateStaffDto.access_level && !validAccessLevels.includes(updateStaffDto.access_level)) {
       throw new BadRequestException(`Invalid access_level. Must be one of: ${validAccessLevels.join(', ')}`);
+    }
+
+    // Check for unique email if updated
+    if (updateStaffDto.email && updateStaffDto.email !== staff.email) {
+      const emailExists =
+        (await this.humanOwnerRepository.findOne({ where: { email: updateStaffDto.email } })) ||
+        (await this.staffRepository.findOne({ where: { email: updateStaffDto.email, id: Not(staffId) } })) ||
+        (await this.businessRepository.findOne({ where: { email: updateStaffDto.email } }));
+      if (emailExists) {
+        throw new BadRequestException('Email already exists');
+      }
     }
 
     try {
@@ -312,7 +343,9 @@ export class BusinessesService {
   }
 
   async getBusinessPets(user: any, page: number = 1, limit: number = 10) {
-    if (user.entityType !== 'Business' && user.entityType !== 'Staff') throw new UnauthorizedException('You are not authorized to view pets');
+    if (user.entityType !== 'Business' && user.entityType !== 'Staff') {
+      throw new UnauthorizedException('You are not authorized to view pets');
+    }
 
     let businessId: string;
     if (user.entityType === 'Business') {
@@ -334,46 +367,83 @@ export class BusinessesService {
     if (!business) throw new NotFoundException('Business not found');
 
     try {
-      let query = this.businessPetMappingRepository
+      // 1. Get all mappings for this business with valid pets and businesses
+      let mappingQuery = this.businessPetMappingRepository
         .createQueryBuilder('mapping')
-        .select([
-          "mapping.business_id AS business_id",
-          "mapping.created_at AS created_at",
-          "mapping.map_id AS map_id",
-          "mapping.note AS note",
-          "mapping.pet_id AS pet_id",
-          "mapping.staff_id AS staff_id",
-          "mapping.status AS status",
-          "mapping.title AS title",
-          "mapping.updated_at AS updated_at",
-          "pet.pet_name AS pet_name",
-          "breed.breed_name AS breed_name",
-          "staff.staff_name AS staff_name",
-          "human_owner.human_owner_name AS human_owner_name",
-          "human_owner.phone AS human_owner_phone",
-          "breed_species.species_name AS species_name",
-          "profilePictureDocument.document_url AS document_url",
-        ])
-        .innerJoin(PetProfile, 'pet', 'mapping.pet_id = pet.id')
-        .leftJoin(Staff, 'staff', 'mapping.staff_id = staff.id')
-        .innerJoin(HumanOwner, 'human_owner', 'pet.humanOwnerId = human_owner.id')
-        .leftJoin(BreedSpecies, 'breed_species', 'pet.breedSpeciesId = breed_species.id')
-        .leftJoin(Breed, 'breed', 'pet.breedId = breed.id')
-        .leftJoin(Document, 'profilePictureDocument', 'pet.profile_picture_document_id = profilePictureDocument.id')
+        .innerJoinAndSelect('mapping.business', 'business', 'business.status = :businessStatus', { businessStatus: Status.Active })
+        .innerJoinAndSelect('mapping.pet', 'pet', 'pet.status = :petStatus', { petStatus: Status.Active })
+        .leftJoinAndSelect('mapping.staff', 'staff')
+        .leftJoinAndSelect('pet.human_owner', 'human_owner')
+        .leftJoinAndSelect('pet.breed_species', 'breed_species')
+        .leftJoinAndSelect('pet.breed', 'breed')
+        .leftJoinAndSelect('pet.profilePictureDocument', 'profilePictureDocument')
         .where('mapping.business_id = :businessId AND mapping.status = :status', { businessId, status: Status.Active });
 
       if (user.entityType === 'Staff') {
-        query = query.andWhere('mapping.staff_id = :staffId', { staffId: user.id });
+        mappingQuery = mappingQuery.andWhere('mapping.staff_id = :staffId OR mapping.staff_id IS NULL', { staffId: user.id });
       }
 
-      query = query.orderBy('mapping.staff_id', 'ASC', 'NULLS LAST');
+      mappingQuery = mappingQuery.orderBy('mapping.created_at', 'DESC').take(limit).skip((page - 1) * limit);
 
-      const results = await query
-        .take(limit)
-        .skip((page - 1) * limit)
-        .getRawMany();
+      const [mappings, total] = await mappingQuery.getManyAndCount();
 
-      const total = await query.getCount();
+      // 2. Get all pet IDs
+      const petIds = mappings.map(m => m.pet.id).filter(id => id);
+
+      // 3. Get all records for these pets and this business
+      let recordsQuery = this.recordRepository
+        .createQueryBuilder('record')
+        .innerJoinAndSelect('record.pet', 'pet', 'pet.status = :petStatus', { petStatus: Status.Active })
+        .innerJoinAndSelect('record.business', 'business', 'business.status = :businessStatus', { businessStatus: Status.Active })
+        .leftJoinAndSelect('record.staff', 'staff')
+        .where('record.business_id = :businessId', { businessId })
+        .andWhere('record.status = :status', { status: Status.Active });
+
+      if (petIds.length > 0) {
+        recordsQuery = recordsQuery.andWhere('record.pet_id IN (:...petIds)', { petIds });
+      } else {
+        recordsQuery = recordsQuery.andWhere('1 = 0');
+      }
+
+      const records = await recordsQuery.orderBy('record.created_at', 'DESC').getMany();
+
+      // 4. Map latest record for each pet
+      const latestRecordMap = new Map<string, Record>();
+      for (const record of records) {
+        if (record.pet && !latestRecordMap.has(record.pet.id)) {
+          latestRecordMap.set(record.pet.id, record);
+        }
+      }
+
+      // 5. Build result
+      const results = mappings.map(mapping => {
+        const pet = mapping.pet;
+        const latestRecord = latestRecordMap.get(pet.id);
+
+        const result = {
+          business_id: mapping.business.id,
+          created_at: mapping.created_at,
+          map_id: mapping.map_id,
+          note: mapping.note,
+          pet_id: pet.id,
+          staff_id: mapping.staff ? mapping.staff.id : null,
+          status: mapping.status,
+          title: mapping.title,
+          updated_at: mapping.updated_at,
+          pet_name: pet.pet_name,
+          breed_name: pet.breed ? pet.breed.breed_name : null,
+          staff_name: mapping.staff ? mapping.staff.staff_name : null,
+          human_owner_name: pet.human_owner ? pet.human_owner.human_owner_name : null,
+          human_owner_phone: pet.human_owner ? pet.human_owner.phone : null,
+          species_name: pet.breed_species ? pet.breed_species.species_name : null,
+          document_url: pet.profilePictureDocument ? pet.profilePictureDocument.document_url : null,
+          last_visit: latestRecord ? latestRecord.created_at : null,
+          record_note: latestRecord ? latestRecord.note : null,
+          doctor_name: latestRecord && latestRecord.staff ? latestRecord.staff.staff_name : null,
+        };
+
+        return result;
+      });
 
       return {
         data: results,

@@ -122,6 +122,14 @@ export class UserPetService {
       }
     }
 
+    let code: string;
+    try {
+      code = await this.getNextPetCode();
+    } catch (error) {
+      console.error('Error generating pet code:', error);
+      code = 'AAAAA'; // Fallback to default code
+    }
+
     // Create pet profile
     const petData = {
       pet_name: pet_name || `Pet-${Date.now()}`,
@@ -139,6 +147,7 @@ export class UserPetService {
       longitude: null,
       notes: null,
       status: Status.Active,
+      qr_code_id: code,
     };
 
     const pet = this.petRepository.create(petData);
@@ -539,5 +548,50 @@ export class UserPetService {
       await this.redis.set(cacheKey, JSON.stringify(result), 'EX', this.CACHE_TTL);
       return result;
     }
+  }
+
+  async getNextPetCode(): Promise<string> {
+    const latestPet = await this.petRepository.find({
+      order: { id: 'DESC' },
+      take: 1,
+    });
+
+    let code = 'AAAAA'; // Default code for the first pet or invalid cases
+    if (latestPet && latestPet.length && latestPet[0]?.qr_code_id) {
+      code = latestPet[0].qr_code_id;
+    }
+
+    const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    const base = charset.length;
+
+    // Validate code length and content
+    if (code.length !== 5 || !code.split('').every(char => charset.includes(char))) {
+      console.warn(`Invalid qr_code_id found: "${code}". Defaulting to AAAAA.`);
+      return 'AAAAA'; // Fallback to default code if invalid
+    }
+
+    const chars = code.split('');
+    let i = 4;
+
+    while (i >= 0) {
+      const currentIndex = charset.indexOf(chars[i]);
+
+      if (currentIndex < base - 1) {
+        // Increment and stop
+        chars[i] = charset[currentIndex + 1];
+        break;
+      } else {
+        // Carry over
+        chars[i] = charset[0];
+        i--;
+      }
+    }
+
+    // If all characters overflowed (e.g., '99999'), wrap to 'AAAAA'
+    if (i < 0) {
+      return 'AAAAA';
+    }
+
+    return chars.join('');
   }
 }

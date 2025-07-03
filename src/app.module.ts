@@ -23,6 +23,7 @@ import { UserPetModule } from './modules/user-pet/user-pet.module';
 import { DocumentProcessingModule } from './modules/document-processing/document-processing.module';
 import { redisConfig } from './config/redis.config';
 import { NotificationModule } from './modules/notification/notification.module';
+import { RecordsModule } from './modules/records/records.module';
 
 @Module({
   imports: [
@@ -57,6 +58,7 @@ import { NotificationModule } from './modules/notification/notification.module';
     UserPetModule,
     DocumentProcessingModule,
     NotificationModule,
+    RecordsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -267,7 +267,7 @@ export class AuthService {
   }
 
   async registerBusiness(dto: RegisterBusinessDto, file?: Express.Multer.File) {
-    const { business_name, email, phone, password, description, website, instagram, facebook, x, contact_preference, document_name, file_type } = dto;
+    const { business_name, email, address, phone, password, description, website, instagram, facebook, x, contact_preference, document_name, file_type } = dto;
 
     const emailExists =
       (await this.humanOwnerRepository.findOne({ where: { email } })) ||
@@ -299,6 +299,7 @@ export class AuthService {
         email,
         phone,
         password: hashedPassword,
+        address,
         description,
         website,
         socials,
@@ -416,6 +417,14 @@ export class AuthService {
 
       const savedHumanOwner = await queryRunner.manager.save(humanOwner);
 
+      let code: string;
+      try {
+        code = await this.getNextPetCode();
+      } catch (error) {
+        console.error('Error generating pet code:', error);
+        code = 'AAAAA'; // Fallback to default code
+      }
+
       // Step 2: Create Pet without image
       const pet = this.petProfileRepository.create({
         human_owner: savedHumanOwner,
@@ -430,6 +439,7 @@ export class AuthService {
         microchip: pet_microchip,
         notes: pet_notes,
         status: Status.Active,
+        qr_code_id: code,
       });
 
       const savedPet = await queryRunner.manager.save(pet);
@@ -690,5 +700,50 @@ export class AuthService {
     else await this.businessRepository.save(user);
 
     return { message: 'Password reset successfully' };
+  }
+
+  async getNextPetCode(): Promise<string> {
+    const latestPet = await this.petProfileRepository.find({
+      order: { id: 'DESC' },
+      take: 1,
+    });
+
+    let code = 'AAAAA'; // Default code for the first pet or invalid cases
+    if (latestPet && latestPet.length && latestPet[0]?.qr_code_id) {
+      code = latestPet[0].qr_code_id;
+    }
+
+    const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    const base = charset.length;
+
+    // Validate code length and content
+    if (code.length !== 5 || !code.split('').every(char => charset.includes(char))) {
+      console.warn(`Invalid qr_code_id found: "${code}". Defaulting to AAAAA.`);
+      return 'AAAAA'; // Fallback to default code if invalid
+    }
+
+    const chars = code.split('');
+    let i = 4;
+
+    while (i >= 0) {
+      const currentIndex = charset.indexOf(chars[i]);
+
+      if (currentIndex < base - 1) {
+        // Increment and stop
+        chars[i] = charset[currentIndex + 1];
+        break;
+      } else {
+        // Carry over
+        chars[i] = charset[0];
+        i--;
+      }
+    }
+
+    // If all characters overflowed (e.g., '99999'), wrap to 'AAAAA'
+    if (i < 0) {
+      return 'AAAAA';
+    }
+
+    return chars.join('');
   }
 }
