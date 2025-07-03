@@ -210,7 +210,7 @@ export class PetsService {
             const allowedTypes = ['PDF', 'JPG', 'PNG', 'DOC', 'JPEG'] as const;
             const type = file && typeof file.mimetype === 'string'
               ? file.mimetype.split('/')[1]?.toUpperCase()
-              : undefined rooting
+              : undefined;
             if (!type || !allowedTypes.includes(type as any)) {
               throw new BadRequestException('Unsupported file type');
             }
