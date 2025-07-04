@@ -170,11 +170,12 @@ export class PetsService {
     const record = await this.recordRepository.findOne({
       where: { pet: { id }, status: Status.Active },
       order: { created_at: 'DESC' },
+      relations: ['business', 'staff'],
     });
 
     // Attach the top (next due) vaccine to the pet object, if any
-    (pet as any).next_due_vaccine = vaccineDue || null;
-    (pet as any).last_visit = record || null;
+    (pet as any).next_due_vaccine = vaccineDue || {};
+    (pet as any).last_visit = record || {};
 
     return pet;
   }
