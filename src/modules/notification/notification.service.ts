@@ -448,25 +448,27 @@ export class NotificationService {
 
   async markAllAsRead(user: any, petId?: string): Promise<{ message: string }> {
     const query = this.notificationRepository
-      .createQueryBuilder('notification')
-      .where('notification.status = :status', { status: Status.Active })
-      .andWhere('notification.is_read = :isRead', { isRead: false });
+      .createQueryBuilder()
+      .update(Notification)
+      .set({ is_read: true })
+      .where('status = :status', { status: Status.Active })
+      .andWhere('is_read = :isRead', { isRead: false });
 
     if (user.entityType === 'HumanOwner') {
-      query.andWhere('notification.human_owner_id = :userId', { userId: user.id });
+      query.andWhere('human_owner_id = :userId', { userId: user.id });
     } else if (user.entityType === 'Business') {
-      query.andWhere('notification.business_id = :businessId', { businessId: user.id });
+      query.andWhere('business_id = :businessId', { businessId: user.id });
     } else if (user.entityType === 'Staff') {
-      query.andWhere('notification.staff_id = :staffId', { staffId: user.id });
+      query.andWhere('staff_id = :staffId', { staffId: user.id });
     } else {
       throw new UnauthorizedException('Only HumanOwner, Business, or Staff entities can mark notifications as read');
     }
 
     if (petId) {
-      query.andWhere('notification.pet_id = :petId', { petId });
+      query.andWhere('pet_id = :petId', { petId });
     }
 
-    await query.update(Notification).set({ is_read: true }).execute();
+    await query.execute();
 
     return { message: 'All notifications marked as read' };
   }
