@@ -120,14 +120,6 @@ export class NotificationService {
     });
     notifications.push(staffNotification);
 
-    // Notification for the business
-    const businessNotification = await this.create({
-      business_id: businessId,
-      message: `${staff.staff_name} has been added to your team`,
-      type: 'StaffAdded',
-    });
-    notifications.push(businessNotification);
-
     return notifications;
   }
 
@@ -182,17 +174,6 @@ export class NotificationService {
         type: 'VaccineAdded',
       });
       notifications.push(ownerNotification);
-    }
-
-    // Notification for business
-    if (businessId) {
-      const businessNotification = await this.create({
-        business_id: businessId,
-        pet_id: petId,
-        message: `Vaccine ${vaccineName} has been successfully uploaded for ${pet.pet_name}`,
-        type: 'VaccineAdded',
-      });
-      notifications.push(businessNotification);
     }
 
     // Notification for staff (if applicable)
@@ -264,15 +245,6 @@ export class NotificationService {
     }
 
     // Notification for business
-    if (businessId) {
-      const businessNotification = await this.create({
-        business_id: businessId,
-        pet_id: petId,
-        message: `Document has been successfully uploaded for ${pet.pet_name}: ${documentDescription}`,
-        type: 'DocumentUploaded',
-      });
-      notifications.push(businessNotification);
-    }
 
     // Notification for staff (if applicable)
     if (staffId) {
