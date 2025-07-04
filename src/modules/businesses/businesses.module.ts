@@ -11,9 +11,10 @@ import { NodeMailerService } from '@shared/services/nodemailer.service';
 import { Team } from '../teams/entities/team.entity';
 import { HumanOwner } from '../human-owners/entities/human-owner.entity';
 import { Record } from '../records/entities/record.entity';
+import { NotificationModule } from '../notification/notification.module'; 
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Business, Staff, PetProfile, BusinessPetMapping, Team, HumanOwner, Record]), DocumentsModule],
+  imports: [TypeOrmModule.forFeature([Business, Staff, PetProfile, BusinessPetMapping, Team, HumanOwner, Record]), DocumentsModule, NotificationModule],
   controllers: [BusinessesController],
   providers: [BusinessesService, NodeMailerService],
   exports: [BusinessesService],

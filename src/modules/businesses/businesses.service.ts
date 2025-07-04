@@ -21,6 +21,7 @@ import { Document } from '@modules/documents/entities/document.entity';
 import { Team } from '../teams/entities/team.entity';
 import { HumanOwner } from '../human-owners/entities/human-owner.entity';
 import { Record } from '../records/entities/record.entity';
+import { NotificationService } from '../notification/notification.service';
 
 @Injectable()
 export class BusinessesService {
@@ -41,6 +42,7 @@ export class BusinessesService {
     private recordRepository: Repository<Record>,
     private documentsService: DocumentsService,
     private nodeMailerService: NodeMailerService,
+    private notificationService: NotificationService,
   ) {}
 
   async getProfile(user: any) {
@@ -141,13 +143,18 @@ export class BusinessesService {
         business,
       });
 
+      const savedStaff = await this.staffRepository.save(staff);
+
       await this.nodeMailerService.shareStaffCredentials(
         staff.email,
         staff.username,
         createStaffDto.password,
       );
 
-      return await this.staffRepository.save(staff);
+      // Create notifications for staff addition
+      await this.notificationService.createStaffAddedNotification(savedStaff.id, business.id);
+
+      return savedStaff;
     } catch (error) {
       throw new BadRequestException(`Failed to add staff: ${error.message}`);
     }

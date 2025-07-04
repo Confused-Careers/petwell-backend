@@ -6,10 +6,22 @@ export class NotificationFilterDto {
   pet_id?: string;
 
   @IsOptional()
+  @IsUUID()
+  human_owner_id?: string;
+
+  @IsOptional()
+  @IsUUID()
+  business_id?: string;
+
+  @IsOptional()
+  @IsUUID()
+  staff_id?: string;
+
+  @IsOptional()
   @IsBoolean()
   is_read?: boolean;
 
   @IsOptional()
-  @IsEnum(['VaccineAdded', 'DocumentUploaded', 'VaccineDue', 'PetBirthday'])
-  type?: 'VaccineAdded' | 'DocumentUploaded' | 'VaccineDue' | 'PetBirthday';
+  @IsEnum(['VaccineAdded', 'DocumentUploaded', 'VaccineDue', 'PetBirthday', 'StaffAdded'])
+  type?: 'VaccineAdded' | 'DocumentUploaded' | 'VaccineDue' | 'PetBirthday' | 'StaffAdded';
 }

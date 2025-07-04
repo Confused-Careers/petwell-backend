@@ -1,7 +1,7 @@
 import { Controller, Get, Post, Body, Param, Delete, UseGuards, Request, Patch } from '@nestjs/common';
 import { NotificationService } from './notification.service';
 import { CreateNotificationDto } from './dto/create-notification.dto';
-import { NotificationFilterDto } from './dto/notification-filter.dto';;
+import { NotificationFilterDto } from './dto/notification-filter.dto';
 import { Notification } from './entities/notification.entity';
 import { JwtAuthGuard } from 'common/guards/jwt-auth.guard';
 
@@ -18,6 +18,13 @@ export class NotificationController {
   @Get('getAll')
   findAll(@Request() req, @Body() filter: NotificationFilterDto): Promise<Notification[]> {
     return this.notificationService.findAllByOwner(req.user, filter);
+  }
+
+  @Get('unread-count')
+  async getUnreadCount(@Request() req, @Body('petId') petId?: string): Promise<{ count: number }> {
+    const filter: NotificationFilterDto = { is_read: false, pet_id: petId };
+    const notifications = await this.notificationService.findAllByOwner(req.user, filter);
+    return { count: notifications.length };
   }
 
   @Patch(':id/read')
