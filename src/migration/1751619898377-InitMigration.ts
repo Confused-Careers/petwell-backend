@@ -1,7 +1,7 @@
 import { MigrationInterface, QueryRunner } from "typeorm";
 
-export class InitMigration1751484484423 implements MigrationInterface {
-    name = 'InitMigration1751484484423'
+export class InitMigration1751619898377 implements MigrationInterface {
+    name = 'InitMigration1751619898377'
 
     public async up(queryRunner: QueryRunner): Promise<void> {
         await queryRunner.query(`CREATE TYPE "public"."businesses_contact_preference_enum" AS ENUM('Phone Call', 'Email', 'Phone Call,Email')`);
@@ -29,13 +29,15 @@ export class InitMigration1751484484423 implements MigrationInterface {
         await queryRunner.query(`CREATE TABLE "vaccines" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "administered_by" character varying, "brand" character varying, "preventative" character varying, "vaccine_document_id" uuid, "vaccine_name" character varying, "date_administered" date, "date_due" date, "location" character varying, "latitude" numeric(9,6), "longitude" numeric(9,6), "attestation" boolean, "status" "public"."vaccines_status_enum" NOT NULL DEFAULT 'Active', "created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), "pet_id" uuid NOT NULL, "human_owner_id" uuid, CONSTRAINT "PK_195bc56fe32c08445078655ec5a" PRIMARY KEY ("id"))`);
         await queryRunner.query(`CREATE TYPE "public"."teams_status_enum" AS ENUM('Active', 'Inactive')`);
         await queryRunner.query(`CREATE TABLE "teams" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "status" "public"."teams_status_enum" NOT NULL DEFAULT 'Active', "created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), "humanOwnerId" uuid NOT NULL, "petId" uuid NOT NULL, "businessId" uuid NOT NULL, CONSTRAINT "PK_7e5523774a38b08a6236d322403" PRIMARY KEY ("id"))`);
+        await queryRunner.query(`CREATE TYPE "public"."records_status_enum" AS ENUM('Active', 'Inactive')`);
+        await queryRunner.query(`CREATE TABLE "records" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "note" text, "title" character varying(255), "created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), "status" "public"."records_status_enum" NOT NULL DEFAULT 'Active', "business_id" uuid NOT NULL, "pet_id" uuid NOT NULL, "staff_id" uuid, CONSTRAINT "PK_188149422ee2454660abf1d5ee5" PRIMARY KEY ("id"))`);
+        await queryRunner.query(`CREATE TYPE "public"."notifications_type_enum" AS ENUM('VaccineAdded', 'DocumentUploaded', 'VaccineDue', 'PetBirthday')`);
+        await queryRunner.query(`CREATE TYPE "public"."notifications_status_enum" AS ENUM('Active', 'Inactive')`);
+        await queryRunner.query(`CREATE TABLE "notifications" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "message" character varying NOT NULL, "type" "public"."notifications_type_enum" NOT NULL, "is_read" boolean NOT NULL DEFAULT false, "status" "public"."notifications_status_enum" NOT NULL DEFAULT 'Active', "created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), "human_owner_id" uuid NOT NULL, "pet_id" uuid NOT NULL, CONSTRAINT "PK_6a72c3c0f683f6462415e653c3a" PRIMARY KEY ("id"))`);
         await queryRunner.query(`CREATE TYPE "public"."licenses_entity_type_enum" AS ENUM('HumanOwner', 'Business')`);
         await queryRunner.query(`CREATE TYPE "public"."licenses_license_plan_enum" AS ENUM('Basic', 'Premium', 'Enterprise')`);
         await queryRunner.query(`CREATE TYPE "public"."licenses_status_enum" AS ENUM('Active', 'Inactive')`);
         await queryRunner.query(`CREATE TABLE "licenses" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "entity_type" "public"."licenses_entity_type_enum" NOT NULL, "entity_id" character varying NOT NULL, "purchase_date" TIMESTAMP NOT NULL, "due_date" TIMESTAMP NOT NULL, "details" text, "license_plan" "public"."licenses_license_plan_enum" NOT NULL, "duration" integer NOT NULL, "is_valid" boolean NOT NULL DEFAULT true, "is_expired" boolean NOT NULL DEFAULT false, "status" "public"."licenses_status_enum" NOT NULL DEFAULT 'Active', "created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), "humanOwnerId" uuid, "businessId" uuid, CONSTRAINT "PK_da5021501ce80efa03de6f40086" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE TYPE "public"."notifications_type_enum" AS ENUM('VaccineAdded', 'DocumentUploaded', 'VaccineDue', 'PetBirthday')`);
-        await queryRunner.query(`CREATE TYPE "public"."notifications_status_enum" AS ENUM('Active', 'Inactive')`);
-        await queryRunner.query(`CREATE TABLE "notifications" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "message" character varying NOT NULL, "type" "public"."notifications_type_enum" NOT NULL, "is_read" boolean NOT NULL DEFAULT false, "status" "public"."notifications_status_enum" NOT NULL DEFAULT 'Active', "created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), "human_owner_id" uuid NOT NULL, "pet_id" uuid NOT NULL, CONSTRAINT "PK_6a72c3c0f683f6462415e653c3a" PRIMARY KEY ("id"))`);
         await queryRunner.query(`CREATE TYPE "public"."business_pet_mapping_status_enum" AS ENUM('Active', 'Inactive')`);
         await queryRunner.query(`CREATE TABLE "business_pet_mapping" ("map_id" uuid NOT NULL DEFAULT uuid_generate_v4(), "note" text, "title" character varying(255), "created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), "status" "public"."business_pet_mapping_status_enum" NOT NULL DEFAULT 'Active', "business_id" uuid NOT NULL, "pet_id" uuid NOT NULL, "staff_id" uuid, CONSTRAINT "PK_cd1ff54160ad08f9034f9f76157" PRIMARY KEY ("map_id"))`);
         await queryRunner.query(`CREATE TYPE "public"."audit_logs_action_enum" AS ENUM('Create', 'Update', 'Delete', 'Login', 'Logout', 'Parse')`);
@@ -60,10 +62,13 @@ export class InitMigration1751484484423 implements MigrationInterface {
         await queryRunner.query(`ALTER TABLE "teams" ADD CONSTRAINT "FK_67928d9262953139b9e4974fa33" FOREIGN KEY ("humanOwnerId") REFERENCES "human_owners"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE "teams" ADD CONSTRAINT "FK_d975c40fbf554da93f14f977592" FOREIGN KEY ("petId") REFERENCES "pet_profiles"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE "teams" ADD CONSTRAINT "FK_9adcfbdac338b44c9f480209593" FOREIGN KEY ("businessId") REFERENCES "businesses"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "licenses" ADD CONSTRAINT "FK_a72e03eac08fe26f6b8016a6685" FOREIGN KEY ("humanOwnerId") REFERENCES "human_owners"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "licenses" ADD CONSTRAINT "FK_3a422af1d2fd12e640c848e9e7c" FOREIGN KEY ("businessId") REFERENCES "businesses"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
+        await queryRunner.query(`ALTER TABLE "records" ADD CONSTRAINT "FK_c0ebfb3453e49ebc569efcef008" FOREIGN KEY ("business_id") REFERENCES "businesses"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
+        await queryRunner.query(`ALTER TABLE "records" ADD CONSTRAINT "FK_83cbc2b2914ecfeaea83ba88d59" FOREIGN KEY ("pet_id") REFERENCES "pet_profiles"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
+        await queryRunner.query(`ALTER TABLE "records" ADD CONSTRAINT "FK_79d16e2fb94c75c7224f36d9a62" FOREIGN KEY ("staff_id") REFERENCES "staff"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE "notifications" ADD CONSTRAINT "FK_19f5ed7d43390eedc5387e15ec1" FOREIGN KEY ("human_owner_id") REFERENCES "human_owners"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE "notifications" ADD CONSTRAINT "FK_3c0fc383c803bba575ffbdae841" FOREIGN KEY ("pet_id") REFERENCES "pet_profiles"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
+        await queryRunner.query(`ALTER TABLE "licenses" ADD CONSTRAINT "FK_a72e03eac08fe26f6b8016a6685" FOREIGN KEY ("humanOwnerId") REFERENCES "human_owners"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
+        await queryRunner.query(`ALTER TABLE "licenses" ADD CONSTRAINT "FK_3a422af1d2fd12e640c848e9e7c" FOREIGN KEY ("businessId") REFERENCES "businesses"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE "business_pet_mapping" ADD CONSTRAINT "FK_7f9321256ca85e0f2f4a0c3ea5c" FOREIGN KEY ("business_id") REFERENCES "businesses"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE "business_pet_mapping" ADD CONSTRAINT "FK_c2c643e67c5a502556f6730c782" FOREIGN KEY ("pet_id") REFERENCES "pet_profiles"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE "business_pet_mapping" ADD CONSTRAINT "FK_808ba4e172cc7015f3fb3f5984b" FOREIGN KEY ("staff_id") REFERENCES "staff"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
@@ -73,10 +78,13 @@ export class InitMigration1751484484423 implements MigrationInterface {
         await queryRunner.query(`ALTER TABLE "business_pet_mapping" DROP CONSTRAINT "FK_808ba4e172cc7015f3fb3f5984b"`);
         await queryRunner.query(`ALTER TABLE "business_pet_mapping" DROP CONSTRAINT "FK_c2c643e67c5a502556f6730c782"`);
         await queryRunner.query(`ALTER TABLE "business_pet_mapping" DROP CONSTRAINT "FK_7f9321256ca85e0f2f4a0c3ea5c"`);
-        await queryRunner.query(`ALTER TABLE "notifications" DROP CONSTRAINT "FK_3c0fc383c803bba575ffbdae841"`);
-        await queryRunner.query(`ALTER TABLE "notifications" DROP CONSTRAINT "FK_19f5ed7d43390eedc5387e15ec1"`);
         await queryRunner.query(`ALTER TABLE "licenses" DROP CONSTRAINT "FK_3a422af1d2fd12e640c848e9e7c"`);
         await queryRunner.query(`ALTER TABLE "licenses" DROP CONSTRAINT "FK_a72e03eac08fe26f6b8016a6685"`);
+        await queryRunner.query(`ALTER TABLE "notifications" DROP CONSTRAINT "FK_3c0fc383c803bba575ffbdae841"`);
+        await queryRunner.query(`ALTER TABLE "notifications" DROP CONSTRAINT "FK_19f5ed7d43390eedc5387e15ec1"`);
+        await queryRunner.query(`ALTER TABLE "records" DROP CONSTRAINT "FK_79d16e2fb94c75c7224f36d9a62"`);
+        await queryRunner.query(`ALTER TABLE "records" DROP CONSTRAINT "FK_83cbc2b2914ecfeaea83ba88d59"`);
+        await queryRunner.query(`ALTER TABLE "records" DROP CONSTRAINT "FK_c0ebfb3453e49ebc569efcef008"`);
         await queryRunner.query(`ALTER TABLE "teams" DROP CONSTRAINT "FK_9adcfbdac338b44c9f480209593"`);
         await queryRunner.query(`ALTER TABLE "teams" DROP CONSTRAINT "FK_d975c40fbf554da93f14f977592"`);
         await queryRunner.query(`ALTER TABLE "teams" DROP CONSTRAINT "FK_67928d9262953139b9e4974fa33"`);
@@ -101,13 +109,15 @@ export class InitMigration1751484484423 implements MigrationInterface {
         await queryRunner.query(`DROP TYPE "public"."audit_logs_action_enum"`);
         await queryRunner.query(`DROP TABLE "business_pet_mapping"`);
         await queryRunner.query(`DROP TYPE "public"."business_pet_mapping_status_enum"`);
-        await queryRunner.query(`DROP TABLE "notifications"`);
-        await queryRunner.query(`DROP TYPE "public"."notifications_status_enum"`);
-        await queryRunner.query(`DROP TYPE "public"."notifications_type_enum"`);
         await queryRunner.query(`DROP TABLE "licenses"`);
         await queryRunner.query(`DROP TYPE "public"."licenses_status_enum"`);
         await queryRunner.query(`DROP TYPE "public"."licenses_license_plan_enum"`);
         await queryRunner.query(`DROP TYPE "public"."licenses_entity_type_enum"`);
+        await queryRunner.query(`DROP TABLE "notifications"`);
+        await queryRunner.query(`DROP TYPE "public"."notifications_status_enum"`);
+        await queryRunner.query(`DROP TYPE "public"."notifications_type_enum"`);
+        await queryRunner.query(`DROP TABLE "records"`);
+        await queryRunner.query(`DROP TYPE "public"."records_status_enum"`);
         await queryRunner.query(`DROP TABLE "teams"`);
         await queryRunner.query(`DROP TYPE "public"."teams_status_enum"`);
         await queryRunner.query(`DROP TABLE "vaccines"`);
