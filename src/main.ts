@@ -9,7 +9,7 @@ async function bootstrap() {
 
   // ✅ Enable CORS for Vite dev server ports (5173, 5174)
   app.enableCors({
-    origin: ['http://localhost:5173', 'http://localhost:5174', "https://petwellsolution.com"],
+    origin: ['http://localhost:5173', 'http://localhost:5174', "https://petwellsolutions.com"],
     credentials: true, // if using cookies or Authorization headers
   });
 
