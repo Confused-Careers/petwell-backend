@@ -10,7 +10,7 @@ export const dataSourceOptions: DataSourceOptions = {
   password: process.env.DB_PASSWORD || 'password',
   database: process.env.DB_NAME || 'petwell',
   entities: [__dirname + '/../modules/**/entities/*.entity{.ts,.js}'],
-  synchronize: true,
+  synchronize: false,
   migrations: [__dirname + '/../migration/*{.ts,.js}'],
 };
 
