@@ -16,10 +16,11 @@ import { Vaccine } from '../vaccines/entities/vaccine.entity';
 import { BusinessPetMapping } from '@modules/businesses/entities/business-pet-mapping.entity';
 import { NotificationModule } from '@modules/notification/notification.module';
 import { Notification } from '@modules/notification/entities/notification.entity';
+import { Record } from '@modules/records/entities/record.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([PetProfile, BreedSpecies, Breed, HumanOwner, AuditLog, Document, Vaccine, BusinessPetMapping, Notification]),
+    TypeOrmModule.forFeature([PetProfile, BreedSpecies, Breed, HumanOwner, AuditLog, Document, Vaccine, BusinessPetMapping, Notification, Record]),
     DocumentsModule,
     NotificationModule,
   ],

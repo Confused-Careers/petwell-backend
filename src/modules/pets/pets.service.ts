@@ -25,6 +25,7 @@ import { Staff } from '@modules/staff/entities/staff.entity';
 import { Vaccine } from '@modules/vaccines/entities/vaccine.entity';
 import { NotificationService } from '@modules/notification/notification.service';
 import { Business } from '@modules/businesses/entities/business.entity';
+import { Record } from '@modules/records/entities/record.entity';
 
 @Injectable()
 export class PetsService {
@@ -45,6 +46,8 @@ export class PetsService {
     private businessPetMappingRepository: Repository<BusinessPetMapping>,
     @InjectRepository(Vaccine)
     private vaccineRepository: Repository<Vaccine>,
+    @InjectRepository(Record)
+    private recordRepository: Repository<Record>,
     private documentsService: DocumentsService,
     private vaccinesService: VaccinesService,
     private notificationService: NotificationService,
@@ -157,6 +160,21 @@ export class PetsService {
     } else {
       throw new UnauthorizedException('Only HumanOwner, Business, or Staff entities can access pets');
     }
+
+
+    const vaccineDue = await this.vaccineRepository.findOne({
+      where: { pet: { id }, status: Status.Active },
+      order: { date_due: 'ASC' },
+    })
+
+    const record = await this.recordRepository.findOne({
+      where: { pet: { id }, status: Status.Active },
+      order: { created_at: 'DESC' },
+    });
+
+    // Attach the top (next due) vaccine to the pet object, if any
+    (pet as any).next_due_vaccine = vaccineDue || null;
+    (pet as any).last_visit = record || null;
 
     return pet;
   }
@@ -557,13 +575,16 @@ export class PetsService {
         id: bs.id,
         name: bs.species_name,
       })),
-      breeds: breedSpecies.reduce((acc, bs) => {
-        acc[bs.id] = bs.breeds.map((breed) => ({
-          id: breed.id,
-          name: breed.breed_name,
-        }));
-        return acc;
-      }, {} as Record<string, { id: string; name: string }[]>),
+      breeds: breedSpecies.reduce(
+        (acc, bs) => {
+          acc[bs.id] = bs.breeds.map((breed) => ({
+            id: breed.id,
+            name: breed.breed_name,
+          }));
+          return acc;
+        },
+        {} as { [key: string]: { id: string; name: string }[] }
+      ),
     };
   }
 

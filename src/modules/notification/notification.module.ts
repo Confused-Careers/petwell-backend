@@ -17,6 +17,7 @@ import { BusinessPetMapping } from '../businesses/entities/business-pet-mapping.
 import { Staff } from '../staff/entities/staff.entity';
 import { Business } from '../businesses/entities/business.entity';
 import { ScheduleModule } from '@nestjs/schedule';
+import { Record } from '../records/entities/record.entity';
 import { AwsModule } from 'aws/aws.module';
 
 @Module({
@@ -33,6 +34,7 @@ import { AwsModule } from 'aws/aws.module';
       BusinessPetMapping,
       Staff,
       Business,
+      Record,
     ]),
     ScheduleModule.forRoot(),
     AwsModule,
