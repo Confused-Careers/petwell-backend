@@ -1,35 +1,29 @@
 FROM node:20-alpine AS development
 
-RUN corepack enable pnpm
-
 WORKDIR /app
 
-COPY package*.json pnpm-lock.yaml ./
+COPY package*.json ./
 
-RUN pnpm install --frozen-lockfile
+RUN npm ci
 
 COPY . .
 
-RUN pnpm run build
+RUN npm run build
 
 FROM node:20-alpine AS production
 
-RUN corepack enable pnpm && \
-    apk add --no-cache dumb-init
+RUN apk add --no-cache dumb-init
 
 WORKDIR /app
 
-COPY package*.json pnpm-lock.yaml ./
+COPY package*.json ./
 
-RUN pnpm install --frozen-lockfile --prod && \
-    pnpm store prune
+RUN npm ci --only=production && npm cache clean --force
 
 COPY --from=development /app/dist ./dist
-COPY entrypoint-flexible.sh ./entrypoint.sh
 
 RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nestjs -u 1001 && \
-    chmod +x entrypoint.sh
+    adduser -S nestjs -u 1001
 
 USER nestjs
 
@@ -37,4 +31,4 @@ EXPOSE 4000
 
 ENTRYPOINT ["dumb-init", "--"]
 
-CMD ["./entrypoint.sh"]
+CMD ["node", "dist/main"]
