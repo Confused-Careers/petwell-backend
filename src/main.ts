@@ -17,7 +17,6 @@ async function bootstrap() {
         'https://petwellsolutions.com',
         'https://www.petwellsolutions.com',
       ];
-      console.log('Request Origin:', origin); // Log the origin for debugging
       if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
@@ -25,7 +24,7 @@ async function bootstrap() {
         callback(new Error('Not allowed by CORS'));
       }
     },
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH', 'HEAD', 'TRACE'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true,
   });
